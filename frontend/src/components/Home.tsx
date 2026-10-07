@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { href } from '../route';
+import type { EntrySummary } from '../api';
+import { href, nameOf } from '../route';
 
 interface ServiceStatus {
   ok: boolean;
@@ -11,7 +12,12 @@ interface Health {
   services: Record<string, ServiceStatus>;
 }
 
-export function Home({ entryCount }: { entryCount: number }) {
+interface Props {
+  entries: EntrySummary[];
+  onNewPage: () => void;
+}
+
+export function Home({ entries, onNewPage }: Props) {
   const [health, setHealth] = useState<Health | null>(null);
 
   useEffect(() => {
@@ -21,34 +27,52 @@ export function Home({ entryCount }: { entryCount: number }) {
       .catch(() => setHealth(null));
   }, []);
 
+  const recent = [...entries]
+    .sort((a, b) => (b.lastModified ?? '').localeCompare(a.lastModified ?? ''))
+    .slice(0, 6);
+
   return (
-    <section>
-      <h2>Welcome to pont</h2>
-      <p>
-        Capture what your organization knows (business definitions, decisions, and processes) as
-        Markdown entries. Agents will read them through MCP.
-      </p>
-      <p>
-        {entryCount === 0
-          ? 'There are no entries yet. '
-          : entryCount === 1
-            ? 'There is 1 entry. '
-            : `There are ${entryCount} entries. `}
-        <a href={href({ view: 'new', folder: '' })}>Write a new entry</a>.
+    <div className="page">
+      <h1 className="page-title static">Home</h1>
+      <p className="lead">
+        Capture what your organization knows (definitions, decisions, and processes) as pages.
+        Agents read them through MCP.
       </p>
 
-      <h3>Stack status</h3>
-      {!health && <p className="muted">Checking…</p>}
-      {health && (
+      <h2 className="section-heading">Recently edited</h2>
+      {recent.length === 0 ? (
+        <div className="empty-state">
+          <p>No pages yet. Start with something only your team knows.</p>
+          <button className="primary" onClick={onNewPage}>
+            New page
+          </button>
+        </div>
+      ) : (
+        <div className="cards">
+          {recent.map((e) => (
+            <a key={e.path} className="card" href={href({ view: 'page', path: e.path })}>
+              <span className="card-icon">▤</span>
+              <strong>{nameOf(e.path)}</strong>
+              <span className="muted">{e.path.includes('/') ? e.path.slice(0, e.path.lastIndexOf('/')) : 'Top level'}</span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      <h2 className="section-heading">Stack status</h2>
+      {!health ? (
+        <p className="muted">Checking…</p>
+      ) : (
         <ul className="services">
           {Object.entries(health.services).map(([name, s]) => (
             <li key={name}>
-              <span className={s.ok ? 'up' : 'down'}>{s.ok ? '●' : '○'}</span>
-              <strong>{name}</strong> {s.detail}
+              <span className={s.ok ? 'up' : 'down'}>●</span>
+              <strong>{name}</strong>
+              <span className="muted">{s.detail}</span>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

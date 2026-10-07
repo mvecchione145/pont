@@ -66,6 +66,18 @@ export const api = {
       body: JSON.stringify({ content, baseVersionId }),
     }),
   deleteEntry: (path: string) => request<void>(entryUrl(path), { method: 'DELETE' }),
+  createUntitled: (folder: string) =>
+    request<Entry>('/api/entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder }),
+    }),
+  moveEntry: (path: string, to: string, baseVersionId: string) =>
+    request<Entry>(`${entryUrl(path)}/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, baseVersionId }),
+    }),
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>
     request<{ token: string; info: TokenInfo }>('/api/tokens', {

@@ -171,3 +171,32 @@ export async function deleteEntry(path: string): Promise<void> {
   }
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: keyFor(path) }));
 }
+
+// Creates an empty entry named "Untitled", "Untitled 2", ... inside folder,
+// so a new page exists the moment the user asks for one.
+export async function createUntitled(folder: string, user: User): Promise<Entry> {
+  const base = folder ? `${parsePath(folder)}/` : '';
+  for (let n = 1; n <= 1000; n++) {
+    const path = `${base}${n === 1 ? 'Untitled' : `Untitled ${n}`}`;
+    if ((await currentVersion(path)) === null) return saveEntry(path, '', null, user);
+  }
+  throw new EntryError(409, 'Too many untitled entries in this folder');
+}
+
+// Renames or moves an entry. The content is written to the new path as a new
+// entry and the old path is deleted; the old path keeps its version history.
+export async function moveEntry(
+  from: string,
+  to: string,
+  baseVersionId: string,
+  user: User,
+): Promise<Entry> {
+  if (from === to) return getEntry(from);
+  const source = await getEntry(from);
+  if (source.versionId !== baseVersionId) {
+    throw new EntryError(409, `"${from}" was changed by someone else since you opened it`);
+  }
+  const moved = await saveEntry(to, source.content, null, user);
+  await deleteEntry(from);
+  return moved;
+}

@@ -80,7 +80,7 @@ export function Tokens() {
 
   return (
     <section>
-      <h2>API tokens</h2>
+      <h1 className="page-title static">API tokens</h1>
       <p className="muted">
         Tokens let your agents, such as Claude Code, read pont through MCP as you. Anyone with a
         token can read all knowledge in pont, so treat it like a password and revoke it when you no

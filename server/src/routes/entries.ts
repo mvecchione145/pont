@@ -1,9 +1,11 @@
 import { Router, type ErrorRequestHandler } from 'express';
 import {
   EntryError,
+  createUntitled,
   deleteEntry,
   getEntry,
   listEntries,
+  moveEntry,
   parsePath,
   saveEntry,
 } from '../entries.js';
@@ -16,6 +18,22 @@ const pathParam = (segments: string | string[]) =>
 
 entriesRouter.get('/', async (_req, res) => {
   res.json(await listEntries());
+});
+
+// POST /api/entries { folder } creates an empty "Untitled" entry.
+entriesRouter.post('/', async (req, res) => {
+  const folder = req.body?.folder ?? '';
+  if (typeof folder !== 'string') throw new EntryError(400, '"folder" must be a string');
+  res.status(201).json(await createUntitled(folder.trim().replace(/\/+$/, ''), req.user!));
+});
+
+// POST /api/entries/<path>/move { to, baseVersionId } renames or moves an entry.
+entriesRouter.post('/*path/move', async (req, res) => {
+  const { to, baseVersionId } = req.body ?? {};
+  if (typeof to !== 'string' || typeof baseVersionId !== 'string') {
+    throw new EntryError(400, '"to" and "baseVersionId" are required');
+  }
+  res.json(await moveEntry(pathParam(req.params.path), parsePath(to), baseVersionId, req.user!));
 });
 
 entriesRouter.get('/*path', async (req, res) => {
