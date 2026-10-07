@@ -7,6 +7,8 @@ import { entriesRouter, entryErrors } from './routes/entries.js';
 import { tokensRouter } from './routes/tokens.js';
 import { mcpRouter } from './mcp.js';
 import { migrate } from './migrate.js';
+import { searchRouter } from './routes/search.js';
+import { startIndexer } from './search/index.js';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -35,6 +37,7 @@ app.get('/api/me', (req, res) => {
 
 app.use('/api/entries', entriesRouter, entryErrors);
 app.use('/api/tokens', tokensRouter);
+app.use('/api/search', searchRouter);
 
 await redis.connect();
 await migrate();
@@ -42,6 +45,10 @@ await migrate();
 const server = app.listen(config.port, () => {
   console.log(`pont server listening on port ${config.port}`);
 });
+
+// Loads the embedding model and builds or catches up the search index in the
+// background; search answers 503 until it is ready.
+void startIndexer();
 
 async function shutdown() {
   server.close();

@@ -1,6 +1,7 @@
 import { GetBucketVersioningCommand } from '@aws-sdk/client-s3';
 import { s3, redis, db } from './clients.js';
 import { config } from './config.js';
+import { status as searchStatus } from './search/index.js';
 
 // Each check resolves to a short detail string, or throws if the dependency
 // is unreachable or misconfigured.
@@ -44,6 +45,13 @@ const checks: Record<string, () => Promise<string>> = {
   },
 };
 
+// Search is reported but doesn't make the server unhealthy: it starts in the
+// background (downloading the model on first run) and the rest of pont works
+// without it.
+function searchHealth(): ServiceStatus {
+  return { ok: searchStatus.state !== 'error', detail: `${searchStatus.state}: ${searchStatus.detail}` };
+}
+
 export async function checkHealth(): Promise<Health> {
   const entries = await Promise.all(
     Object.entries(checks).map(async ([name, check]): Promise<[string, ServiceStatus]> => {
@@ -54,6 +62,6 @@ export async function checkHealth(): Promise<Health> {
       }
     }),
   );
-  const services = Object.fromEntries(entries);
+  const services = { ...Object.fromEntries(entries), search: searchHealth() };
   return { ok: entries.every(([, s]) => s.ok), services };
 }

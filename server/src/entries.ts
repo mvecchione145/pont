@@ -6,6 +6,7 @@ import {
   PutObjectCommand,
   type ListObjectsV2CommandOutput,
 } from '@aws-sdk/client-s3';
+import { EventEmitter } from 'node:events';
 import { s3 } from './clients.js';
 import { config } from './config.js';
 import type { User } from './auth.js';
@@ -37,6 +38,10 @@ export interface Entry {
   lastModified?: string;
   author?: Author;
 }
+
+// Emits "saved" and "deleted" with the entry path, so other parts of the
+// server (the search indexer) can follow changes without coupling to storage.
+export const entryEvents = new EventEmitter<{ saved: [path: string]; deleted: [path: string] }>();
 
 export class EntryError extends Error {
   constructor(
@@ -155,6 +160,7 @@ export async function saveEntry(
       Metadata: { 'author-id': author.id, 'author-name': encodeURIComponent(author.name) },
     }),
   );
+  entryEvents.emit('saved', path);
   return {
     path,
     content,
@@ -170,6 +176,7 @@ export async function deleteEntry(path: string): Promise<void> {
     throw new EntryError(404, `No entry at "${path}"`);
   }
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: keyFor(path) }));
+  entryEvents.emit('deleted', path);
 }
 
 // Creates an empty entry named "Untitled", "Untitled 2", ... inside folder,

@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { Page } from './components/Page';
 import { Home } from './components/Home';
 import { Tokens } from './components/Tokens';
+import { SearchDialog } from './components/SearchDialog';
 
 export default function App() {
   const route = useRoute();
@@ -12,6 +13,19 @@ export default function App() {
   const [entries, setEntries] = useState<EntrySummary[]>([]);
   const [justCreated, setJustCreated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Cmd+K / Ctrl+K opens search from anywhere, like Notion.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   // React keys for pages: a unique ID per path, assigned on first view. A
   // renamed page carries its ID to the new path, so it stays mounted (and keeps
   // its editor state) while the URL changes. IDs are never reused, so a new
@@ -66,7 +80,13 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar user={user} entries={entries} route={route} onNewPage={newPage} />
+      <Sidebar
+        user={user}
+        entries={entries}
+        route={route}
+        onNewPage={newPage}
+        onSearch={() => setSearchOpen(true)}
+      />
       <main className="main">
         {error && (
           <div className="banner">
@@ -90,6 +110,7 @@ export default function App() {
           />
         )}
       </main>
+      {searchOpen && <SearchDialog onClose={() => setSearchOpen(false)} />}
     </div>
   );
 }

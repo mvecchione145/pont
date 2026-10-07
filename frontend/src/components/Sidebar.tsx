@@ -93,9 +93,12 @@ interface Props {
   entries: EntrySummary[];
   route: Route;
   onNewPage: (folder: string) => void;
+  onSearch: () => void;
 }
 
-export function Sidebar({ user, entries, route, onNewPage }: Props) {
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+export function Sidebar({ user, entries, route, onNewPage, onSearch }: Props) {
   const selected = route.view === 'page' ? route.path : undefined;
   return (
     <aside className="sidebar">
@@ -108,6 +111,11 @@ export function Sidebar({ user, entries, route, onNewPage }: Props) {
       </div>
 
       <nav className="nav">
+        <button className="row row-main" onClick={onSearch}>
+          <span className="page-icon">⌕</span>
+          <span className="row-label">Search</span>
+          <kbd className="shortcut">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
+        </button>
         <a className="row row-main" href={href({ view: 'home' })} aria-current={route.view === 'home' ? 'page' : undefined}>
           <span className="page-icon">⌂</span>
           <span className="row-label">Home</span>

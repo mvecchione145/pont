@@ -34,6 +34,14 @@ export interface TokenInfo {
   lastUsedAt: string | null;
 }
 
+export interface SearchResult {
+  path: string;
+  title: string;
+  headings: string;
+  content: string;
+  score: number;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -78,6 +86,8 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ to, baseVersionId }),
     }),
+  search: (q: string, limit = 12) =>
+    request<SearchResult[]>(`/api/search?${new URLSearchParams({ q, limit: String(limit) })}`),
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>
     request<{ token: string; info: TokenInfo }>('/api/tokens', {

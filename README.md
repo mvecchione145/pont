@@ -49,9 +49,31 @@ The user can now sign in at http://localhost:3000.
      --header "Authorization: Bearer pont_..."
    ```
 
-Claude Code can then call pont's MCP tools, `list_entries` and `read_entry`, as you. Revoke a token on the same page when you no longer need it.
+Claude Code can then call pont's MCP tools as you: `search`, `read_entry`, and `list_entries`. Revoke a token on the same page when you no longer need it.
 
 > Keycloak imports `infra/keycloak/pont-realm.json` only on its first start. After changing that file, run `docker compose down -v` to reset the data and import it again.
+
+### Search
+
+Press **⌘K** (or **Ctrl K**), or click **Search** in the sidebar. Search is hybrid: it matches by meaning, so plain-language questions work, and by exact terms such as metric names and acronyms. Agents get the same search through the MCP `search` tool.
+
+How it works:
+
+- Each page is split into chunks by headings, with a size limit. A page that fits in one chunk stays whole.
+- A local embedding model ([bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5)) runs inside the server, with no API key. On the first start it downloads about 35 MB into the `model-cache` volume, and search is ready a few seconds later.
+- Chunks and their vectors are stored in Redis, which runs a vector search and a BM25 keyword search side by side. Their scores are combined, and results with weak meaning and no keyword match are dropped, so unrelated questions return nothing.
+- The index updates about 1.5 seconds after a page is saved, moved, or deleted. On every start it catches up with MinIO, which remains the source of truth.
+
+To rebuild the index from scratch, call `POST /api/search/reindex` as a signed-in user. The index also rebuilds itself when the embedding model or the chunking changes.
+
+Tuning (environment variables on `server`):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `EMBEDDING_MODEL` | `Xenova/bge-small-en-v1.5` | Embedding model (changing it triggers a rebuild) |
+| `SEARCH_ALPHA_LONG` | `0.7` | Weight of meaning versus keywords for questions of 3+ words |
+| `SEARCH_ALPHA_SHORT` | `0.3` | The same weight for 1–2 word queries, which lean on exact terms |
+| `SEARCH_MIN_SIMILARITY` | `0.62` | Minimum similarity for a result that matches no keywords |
 
 ## Services
 

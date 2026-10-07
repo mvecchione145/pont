@@ -14,6 +14,10 @@ export const config = {
   },
   redisUrl: required('REDIS_URL'),
   databaseUrl: required('DATABASE_URL'),
+  search: {
+    embeddingModel: process.env.EMBEDDING_MODEL ?? 'Xenova/bge-small-en-v1.5',
+    modelCacheDir: process.env.MODEL_CACHE_DIR ?? './models',
+  },
   keycloak: {
     // Reached from inside the Compose network (health checks, signing keys).
     url: required('KEYCLOAK_URL'),
