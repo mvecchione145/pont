@@ -4,6 +4,9 @@ import { redis, db } from './clients.js';
 import { checkHealth } from './health.js';
 import { requireUser } from './auth.js';
 import { entriesRouter, entryErrors } from './routes/entries.js';
+import { tokensRouter } from './routes/tokens.js';
+import { mcpRouter } from './mcp.js';
+import { migrate } from './migrate.js';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -19,6 +22,10 @@ app.get('/api/config', (_req, res) => {
   res.json({ keycloak: { url: publicUrl, realm, clientId } });
 });
 
+// MCP endpoint for agents. Authenticated by personal API token, not by a
+// Keycloak login, so it sits outside the /api login check.
+app.use('/mcp', mcpRouter);
+
 // Everything registered below this line requires a logged-in user.
 app.use('/api', requireUser);
 
@@ -27,8 +34,10 @@ app.get('/api/me', (req, res) => {
 });
 
 app.use('/api/entries', entriesRouter, entryErrors);
+app.use('/api/tokens', tokensRouter);
 
 await redis.connect();
+await migrate();
 
 const server = app.listen(config.port, () => {
   console.log(`pont server listening on port ${config.port}`);

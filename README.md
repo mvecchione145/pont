@@ -38,14 +38,27 @@ pont has no self-signup: an admin creates every account.
 
 The user can now sign in at http://localhost:3000.
 
+### Connecting Claude Code
+
+1. Sign in to pont and open **API tokens** (top right).
+2. Create a token. pont shows it once, together with the command to run.
+3. Run that command. It looks like this:
+
+   ```sh
+   claude mcp add --transport http pont http://localhost:3000/mcp \
+     --header "Authorization: Bearer pont_..."
+   ```
+
+Claude Code can then call pont's MCP tools, `list_entries` and `read_entry`, as you. Revoke a token on the same page when you no longer need it.
+
 > Keycloak imports `infra/keycloak/pont-realm.json` only on its first start. After changing that file, run `docker compose down -v` to reset the data and import it again.
 
 ## Services
 
 | Service | Role |
 |---|---|
-| `frontend` | React app, served by nginx, which also proxies `/api` to the server |
-| `server` | Node.js REST API for the frontend, and later the MCP endpoint for agents |
+| `frontend` | React app, served by nginx, which also proxies `/api` and `/mcp` to the server |
+| `server` | Node.js REST API for the frontend, and the MCP endpoint for agents (`/mcp`) |
 | `minio` | Stores knowledge files as Markdown, with bucket versioning for history (`minio-init` creates the bucket on startup) |
 | `redis` | Redis Stack: document chunks and vectors for hybrid search |
 | `postgres` | Databases for Keycloak and pont |

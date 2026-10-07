@@ -26,6 +26,14 @@ export interface User {
   name?: string;
 }
 
+export interface TokenInfo {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -58,4 +66,12 @@ export const api = {
       body: JSON.stringify({ content, baseVersionId }),
     }),
   deleteEntry: (path: string) => request<void>(entryUrl(path), { method: 'DELETE' }),
+  listTokens: () => request<TokenInfo[]>('/api/tokens'),
+  createToken: (name: string) =>
+    request<{ token: string; info: TokenInfo }>('/api/tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
+  revokeToken: (id: string) => request<void>(`/api/tokens/${id}`, { method: 'DELETE' }),
 };

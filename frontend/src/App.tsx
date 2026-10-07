@@ -6,6 +6,7 @@ import { EntryTree } from './components/EntryTree';
 import { EntryView } from './components/EntryView';
 import { EntryEditor } from './components/EntryEditor';
 import { Home } from './components/Home';
+import { Tokens } from './components/Tokens';
 
 export default function App() {
   const route = useRoute();
@@ -33,6 +34,7 @@ export default function App() {
         </a>
         {user && (
           <div className="account">
+            <a href={href({ view: 'tokens' })}>API tokens</a>
             <span>{user.name ?? user.username}</span>
             <button onClick={() => logout()}>Sign out</button>
           </div>
@@ -50,6 +52,7 @@ export default function App() {
         <main className="content">
           {error && <p className="down">{error}</p>}
           {route.view === 'home' && <Home entryCount={entries.length} />}
+          {route.view === 'tokens' && <Tokens />}
           {route.view === 'entry' && <EntryView path={route.path} onDeleted={refreshEntries} />}
           {route.view === 'edit' && (
             <EntryEditor key={route.path} mode="edit" path={route.path} onSaved={refreshEntries} />

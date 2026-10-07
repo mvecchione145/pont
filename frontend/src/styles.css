@@ -291,3 +291,49 @@ textarea {
   gap: 0.5rem;
   padding: 0.25rem 0;
 }
+
+/* API tokens */
+
+.token-form {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.token-form input {
+  flex: 1;
+}
+
+.callout {
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.25rem 1rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.copy-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.copy-row code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+}
+
+.tokens {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tokens th,
+.tokens td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}

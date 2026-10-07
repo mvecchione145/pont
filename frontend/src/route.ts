@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 
-// A tiny hash router: #/entry/<path>, #/edit/<path>, #/new, or home.
+// A tiny hash router: #/entry/<path>, #/edit/<path>, #/new, #/tokens, or home.
 export type Route =
   | { view: 'home' }
+  | { view: 'tokens' }
   | { view: 'new'; folder: string }
   | { view: 'entry'; path: string }
   | { view: 'edit'; path: string };
@@ -13,6 +14,7 @@ function parse(hash: string): Route {
   if (view === 'entry' && path) return { view: 'entry', path };
   if (view === 'edit' && path) return { view: 'edit', path };
   if (view === 'new') return { view: 'new', folder: path };
+  if (view === 'tokens') return { view: 'tokens' };
   return { view: 'home' };
 }
 
@@ -21,6 +23,8 @@ export function href(route: Route): string {
   switch (route.view) {
     case 'home':
       return '#/';
+    case 'tokens':
+      return '#/tokens';
     case 'new':
       return route.folder ? `#/new/${enc(route.folder)}` : '#/new';
     default:
