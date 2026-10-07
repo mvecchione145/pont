@@ -1,0 +1,148 @@
+# pont MVP stack. `docker compose up` works with no .env file: every
+# setting has a development default. Override them in .env (see .env.example).
+
+name: pont
+
+x-minio-env: &minio-env
+  MINIO_ROOT_USER: ${MINIO_ROOT_USER:-pont}
+  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-pont-minio-dev}
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "${PONT_PORT:-3000}:80"
+    depends_on:
+      server:
+        condition: service_healthy
+
+  server:
+    build: ./server
+    environment:
+      PORT: 4000
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pont}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-pont-minio-dev}
+      MINIO_BUCKET: ${MINIO_BUCKET:-pont}
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://${PONT_DB_USER:-pont}:${PONT_DB_PASSWORD:-pont-db-dev}@postgres:5432/${PONT_DB_NAME:-pont}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: pont
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment: *minio-env
+    ports:
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot job: create the knowledge bucket and turn on versioning
+  # (versioning is how pont keeps the history of every entry).
+  minio-init:
+    image: cgr.dev/chainguard/minio:latest
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        mc version enable "local/$$MINIO_BUCKET"
+    environment:
+      <<: *minio-env
+      MINIO_BUCKET: ${MINIO_BUCKET:-pont}
+      MC_CONFIG_DIR: /tmp/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  redis:
+    image: redis/redis-stack-server:7.4.0-v6
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres-dev}
+      KEYCLOAK_DB_NAME: keycloak
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak-db-dev}
+      PONT_DB_NAME: ${PONT_DB_NAME:-pont}
+      PONT_DB_USER: ${PONT_DB_USER:-pont}
+      PONT_DB_PASSWORD: ${PONT_DB_PASSWORD:-pont-db-dev}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak-db-dev}
+      # Browsers reach Keycloak at localhost, containers at keycloak:8080.
+      # Tokens always carry the public URL as their issuer.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8080}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    volumes:
+      - ./infra/keycloak/pont-realm.json:/opt/keycloak/data/import/pont-realm.json:ro
+    healthcheck:
+      # The image has no curl or wget, so probe the management port with bash.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/localhost/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"UP"' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  minio-data:
+  redis-data:
+  postgres-data:
