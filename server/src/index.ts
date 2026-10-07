@@ -3,9 +3,10 @@ import { config } from './config.js';
 import { redis, db } from './clients.js';
 import { checkHealth } from './health.js';
 import { requireUser } from './auth.js';
+import { entriesRouter, entryErrors } from './routes/entries.js';
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // Public routes: Docker health checks and the frontend's login bootstrap.
 app.get('/api/health', async (_req, res) => {
@@ -24,6 +25,8 @@ app.use('/api', requireUser);
 app.get('/api/me', (req, res) => {
   res.json(req.user);
 });
+
+app.use('/api/entries', entriesRouter, entryErrors);
 
 await redis.connect();
 
