@@ -28,7 +28,9 @@ services:
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://${PONT_DB_USER:-pont}:${PONT_DB_PASSWORD:-pont-db-dev}@postgres:5432/${PONT_DB_NAME:-pont}
       KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_PUBLIC_URL: http://localhost:${KEYCLOAK_PORT:-8080}
       KEYCLOAK_REALM: pont
+      KEYCLOAK_CLIENT_ID: pont-web
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
       interval: 10s
@@ -122,6 +124,8 @@ services:
       KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8080}
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HEALTH_ENABLED: "true"
+      # Substituted into pont-realm.json on import (allowed login redirects).
+      PONT_PUBLIC_URL: http://localhost:${PONT_PORT:-3000}
     ports:
       - "${KEYCLOAK_PORT:-8080}:8080"
     volumes:

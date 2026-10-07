@@ -15,7 +15,11 @@ export const config = {
   redisUrl: required('REDIS_URL'),
   databaseUrl: required('DATABASE_URL'),
   keycloak: {
+    // Reached from inside the Compose network (health checks, signing keys).
     url: required('KEYCLOAK_URL'),
+    // Reached by browsers. Tokens carry this URL in their issuer claim.
+    publicUrl: required('KEYCLOAK_PUBLIC_URL'),
     realm: required('KEYCLOAK_REALM'),
+    clientId: required('KEYCLOAK_CLIENT_ID'),
   },
 };

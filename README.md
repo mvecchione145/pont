@@ -27,6 +27,19 @@ curl http://localhost:3000/api/health
 
 The default passwords are for local development only. Change them in `.env` before running pont anywhere else.
 
+### Creating users
+
+pont has no self-signup: an admin creates every account.
+
+1. Open the Keycloak admin console at http://localhost:8080/admin and sign in as the bootstrap admin.
+2. Switch to the **pont** realm (top-left realm menu).
+3. Go to **Users → Create user**, fill in a username and email, and create it.
+4. On the user's **Credentials** tab, set a password. Leave **Temporary** on to make the user choose their own password at first login.
+
+The user can now sign in at http://localhost:3000.
+
+> Keycloak imports `infra/keycloak/pont-realm.json` only on its first start. After changing that file, run `docker compose down -v` to reset the data and import it again.
+
 ## Services
 
 | Service | Role |
