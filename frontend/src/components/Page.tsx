@@ -41,6 +41,8 @@ function validName(name: string): string | null {
 
 interface Props {
   path: string;
+  // Set when arriving from trivia's "Fact check": the heading to scroll to.
+  section?: string;
   isNew: boolean;
   onChanged: () => void;
   // Called after a rename or move. The parent keeps this same Page mounted
@@ -48,7 +50,7 @@ interface Props {
   onRenamed: (from: string, to: string) => void;
 }
 
-export function Page({ path, isNew, onChanged, onRenamed }: Props) {
+export function Page({ path, section, isNew, onChanged, onRenamed }: Props) {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
@@ -59,6 +61,7 @@ export function Page({ path, isNew, onChanged, onRenamed }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [moving, setMoving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [factCheck, setFactCheck] = useState(Boolean(section));
 
   // Autosave bookkeeping lives in refs so the editor's change handler never
   // goes stale. pathRef is the page's current path: a rename changes it in
@@ -157,6 +160,36 @@ export function Page({ path, isNew, onChanged, onRenamed }: Props) {
       void flush();
     };
   }, [flush]);
+
+  // Fact check: once the editor has rendered, scroll to the section the
+  // trivia question came from and highlight it briefly. The highlight is a
+  // separate overlay: ProseMirror owns the editor's DOM and redraws any node
+  // changed from outside, so a class added to the heading wouldn't survive.
+  useEffect(() => {
+    if (!section || !entry) return;
+    setFactCheck(true);
+    // Up to 10s: on a cold load the editor bundle may still be downloading.
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      const headings = [...document.querySelectorAll<HTMLElement>('.editor-root .ProseMirror :is(h1, h2, h3, h4, h5, h6)')];
+      const target = headings.find((h) => h.textContent?.trim() === section.trim());
+      if (target || ++tries > 100) window.clearInterval(timer);
+      if (!target) return;
+      target.scrollIntoView({ block: 'center' });
+      const rect = target.getBoundingClientRect();
+      const flash = document.createElement('div');
+      flash.className = 'fact-check-flash';
+      Object.assign(flash.style, {
+        top: `${rect.top + window.scrollY - 6}px`,
+        left: `${rect.left + window.scrollX - 10}px`,
+        width: `${rect.width + 20}px`,
+        height: `${rect.height + 12}px`,
+      });
+      document.body.appendChild(flash);
+      window.setTimeout(() => flash.remove(), 2600);
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [section, entry]);
 
   // A brand-new page opens with its title selected, once. (Later updates to
   // entry, like the rename that follows typing a title, must not steal focus.)
@@ -323,6 +356,15 @@ export function Page({ path, isNew, onChanged, onRenamed }: Props) {
         </div>
       </header>
 
+      {factCheck && (
+        <div className="banner fact-check">
+          <span>
+            <strong>Fact check:</strong> is this still accurate? Fix anything that's wrong or out of date
+            right here. Changes save automatically.
+          </span>
+          <button onClick={() => setFactCheck(false)}>Done</button>
+        </div>
+      )}
       {saveState === 'conflict' && (
         <div className="banner">
           <span>

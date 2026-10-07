@@ -6,6 +6,8 @@ import { Page } from './components/Page';
 import { Home } from './components/Home';
 import { Tokens } from './components/Tokens';
 import { SearchDialog } from './components/SearchDialog';
+import { Trivia } from './components/Trivia';
+import { Settings } from './components/Settings';
 
 export default function App() {
   const route = useRoute();
@@ -95,6 +97,16 @@ export default function App() {
           </div>
         )}
         {route.view === 'home' && <Home entries={entries} onNewPage={() => newPage('')} />}
+        {route.view === 'trivia' && (
+          <div className="page wide">
+            <Trivia user={user} />
+          </div>
+        )}
+        {route.view === 'settings' && (
+          <div className="page">
+            <Settings />
+          </div>
+        )}
         {route.view === 'tokens' && (
           <div className="page">
             <Tokens />
@@ -104,6 +116,7 @@ export default function App() {
           <Page
             key={pageKey(route.path)}
             path={route.path}
+            section={route.section}
             isNew={justCreated === route.path}
             onChanged={refreshEntries}
             onRenamed={renamed}

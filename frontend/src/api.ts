@@ -42,6 +42,56 @@ export interface SearchResult {
   score: number;
 }
 
+export type Provider = 'anthropic' | 'openai-compatible';
+
+export interface LlmSettings {
+  configured: boolean;
+  provider: Provider;
+  model: string;
+  baseUrl: string;
+  hasKey: boolean;
+  keyHint: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+export interface SampleQuestion {
+  question: string;
+  correct_answer: string;
+  wrong_answers: string[];
+  explanation: string;
+}
+
+export interface TriviaQuestion {
+  id: string;
+  path: string;
+  headings: string;
+  question: string;
+  options: string[];
+}
+
+export interface Scores {
+  allTime: number;
+  week: number;
+}
+
+export interface TriviaResult {
+  correct?: boolean;
+  correctIndex: number;
+  explanation: string;
+  path: string;
+  headings: string;
+  scores: Scores;
+}
+
+export interface LeaderboardRow {
+  userId: string;
+  name: string;
+  score: number;
+  answered: number;
+  correct: number;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -88,6 +138,24 @@ export const api = {
     }),
   search: (q: string, limit = 12) =>
     request<SearchResult[]>(`/api/search?${new URLSearchParams({ q, limit: String(limit) })}`),
+  getLlmSettings: () => request<LlmSettings>('/api/settings/llm'),
+  saveLlmSettings: (s: { provider: Provider; model: string; baseUrl: string; apiKey?: string }) =>
+    request<LlmSettings>('/api/settings/llm', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(s),
+    }),
+  testLlm: () => request<{ ok: true; sample: SampleQuestion }>('/api/settings/llm/test', { method: 'POST' }),
+  currentQuestion: () => request<TriviaQuestion | null>('/api/trivia/current'),
+  nextQuestion: () => request<TriviaQuestion>('/api/trivia/questions', { method: 'POST' }),
+  answer: (id: string, choice: number) =>
+    request<TriviaResult>(`/api/trivia/questions/${id}/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ choice }),
+    }),
+  skip: (id: string) => request<TriviaResult>(`/api/trivia/questions/${id}/skip`, { method: 'POST' }),
+  leaderboard: (period: 'all' | 'week') => request<LeaderboardRow[]>(`/api/trivia/leaderboard?period=${period}`),
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>
     request<{ token: string; info: TokenInfo }>('/api/tokens', {

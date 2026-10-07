@@ -222,3 +222,22 @@ export async function startIndexer(): Promise<void> {
     console.error('search index failed to start:', status.detail);
   }
 }
+
+export interface IndexedChunk {
+  key: string;
+  path: string;
+  headings: string;
+  content: string;
+}
+
+// A random chunk from the index: a random page first, then a random chunk of
+// it, so long pages don't dominate. Returns null when the index is empty.
+export async function randomChunk(): Promise<IndexedChunk | null> {
+  const path = await redis.hRandField(INDEXED_KEY);
+  if (!path) return null;
+  const key = await redis.sRandMember(pathChunksKey(path));
+  if (!key) return null;
+  const fields = await redis.hmGet(key, ['path', 'headings', 'content']);
+  if (!fields[0]) return null;
+  return { key, path: String(fields[0]), headings: String(fields[1] ?? ''), content: String(fields[2] ?? '') };
+}

@@ -205,6 +205,26 @@ Each proposal is a unified diff (`git diff` format) stored next to the knowledge
 
 > Main reasons a user would drop pont after a week: **heavy maintenance**, an **interface that's hard to understand**, and **MCP tools that aren't helpful**. Every story above should be judged against these three.
 
+
+## Epic 7 — Documentation trivia *(post-MVP)*
+
+Keeps people engaged with the documentation, and turns spotting stale content into a habit.
+
+**7.1** As a **Domain Expert**, I want to answer multiple-choice questions generated from our documentation, so that I learn what's documented and notice when something is wrong.
+- [x] Questions are written on the fly by an LLM from a random documentation chunk, with four options and one correct answer
+- [x] The correct answer stays on the server until the question is answered; each question can be answered once
+- [x] +1 for a correct answer, −1 for a wrong one; skipping scores nothing
+
+**7.2** As a **Domain Expert**, I want a leaderboard, so that keeping up with the docs is a friendly competition.
+- [x] All-time and weekly (Monday-based) leaderboards
+
+**7.3** As a **Domain Expert**, I want a "Fact check" button on each question, so that I can fix the documentation as soon as I notice it's wrong.
+- [x] Opens the source page scrolled to the section the question came from, with a prompt to edit it (no points)
+
+**7.4** As an **AI Engineer**, I want to choose the LLM provider, so that trivia works with our existing model access.
+- [x] Anthropic (official SDK) or any OpenAI-compatible endpoint, configured once on a Settings page
+- [x] The API key is encrypted at rest and never returned to the browser
+
 ---
 
 ## Open questions

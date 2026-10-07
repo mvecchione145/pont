@@ -122,11 +122,27 @@ export function Sidebar({ user, entries, route, onNewPage, onSearch }: Props) {
         </a>
         <a
           className="row row-main"
+          href={href({ view: 'trivia' })}
+          aria-current={route.view === 'trivia' ? 'page' : undefined}
+        >
+          <span className="page-icon">?</span>
+          <span className="row-label">Trivia</span>
+        </a>
+        <a
+          className="row row-main"
           href={href({ view: 'tokens' })}
           aria-current={route.view === 'tokens' ? 'page' : undefined}
         >
           <span className="page-icon">⚿</span>
           <span className="row-label">API tokens</span>
+        </a>
+        <a
+          className="row row-main"
+          href={href({ view: 'settings' })}
+          aria-current={route.view === 'settings' ? 'page' : undefined}
+        >
+          <span className="page-icon">⚙</span>
+          <span className="row-label">Settings</span>
         </a>
       </nav>
 

@@ -34,6 +34,8 @@ services:
       # Local embedding model for search, downloaded once into model-cache.
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-Xenova/bge-small-en-v1.5}
       MODEL_CACHE_DIR: /models
+      # Encrypts the LLM API key stored in Postgres. Change it in .env.
+      PONT_SECRET_KEY: ${PONT_SECRET_KEY:-pont-dev-secret-change-me}
     volumes:
       - model-cache:/models
     healthcheck:

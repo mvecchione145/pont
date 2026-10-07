@@ -8,6 +8,8 @@ import { tokensRouter } from './routes/tokens.js';
 import { mcpRouter } from './mcp.js';
 import { migrate } from './migrate.js';
 import { searchRouter } from './routes/search.js';
+import { settingsRouter } from './routes/settings.js';
+import { triviaRouter, triviaErrors } from './routes/trivia.js';
 import { startIndexer } from './search/index.js';
 
 const app = express();
@@ -38,6 +40,8 @@ app.get('/api/me', (req, res) => {
 app.use('/api/entries', entriesRouter, entryErrors);
 app.use('/api/tokens', tokensRouter);
 app.use('/api/search', searchRouter);
+app.use('/api/settings', settingsRouter);
+app.use('/api/trivia', triviaRouter, triviaErrors);
 
 await redis.connect();
 await migrate();

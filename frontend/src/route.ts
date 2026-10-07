@@ -1,14 +1,24 @@
 import { useEffect, useState } from 'react';
 
-// A tiny hash router: #/p/<path> for a page, #/tokens, or home.
-export type Route = { view: 'home' } | { view: 'tokens' } | { view: 'page'; path: string };
+// A tiny hash router: #/p/<path>[?section=<heading>] for a page, plus
+// #/trivia, #/settings, #/tokens, or home.
+export type Route =
+  | { view: 'home' }
+  | { view: 'tokens' }
+  | { view: 'trivia' }
+  | { view: 'settings' }
+  | { view: 'page'; path: string; section?: string };
 
 function parse(hash: string): Route {
-  const [, view = '', ...rest] = hash.replace(/^#/, '').split('/');
+  const [location, query = ''] = hash.replace(/^#/, '').split('?');
+  const [, view = '', ...rest] = location.split('/');
   const path = rest.map(decodeURIComponent).join('/');
   // "entry" is the pre-redesign name, kept so old links still open.
-  if ((view === 'p' || view === 'entry') && path) return { view: 'page', path };
-  if (view === 'tokens') return { view: 'tokens' };
+  if ((view === 'p' || view === 'entry') && path) {
+    const section = new URLSearchParams(query).get('section') ?? undefined;
+    return { view: 'page', path, section };
+  }
+  if (view === 'tokens' || view === 'trivia' || view === 'settings') return { view };
   return { view: 'home' };
 }
 
@@ -17,9 +27,13 @@ export function href(route: Route): string {
     case 'home':
       return '#/';
     case 'tokens':
-      return '#/tokens';
-    case 'page':
-      return `#/p/${route.path.split('/').map(encodeURIComponent).join('/')}`;
+    case 'trivia':
+    case 'settings':
+      return `#/${route.view}`;
+    case 'page': {
+      const base = `#/p/${route.path.split('/').map(encodeURIComponent).join('/')}`;
+      return route.section ? `${base}?${new URLSearchParams({ section: route.section })}` : base;
+    }
   }
 }
 

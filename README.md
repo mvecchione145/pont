@@ -75,6 +75,17 @@ Tuning (environment variables on `server`):
 | `SEARCH_ALPHA_SHORT` | `0.3` | The same weight for 1–2 word queries, which lean on exact terms |
 | `SEARCH_MIN_SIMILARITY` | `0.62` | Minimum similarity for a result that matches no keywords |
 
+### Trivia
+
+**Trivia** (in the sidebar) asks multiple-choice questions written on the fly from a random section of your documentation: +1 for a correct answer, −1 for a wrong one. The leaderboard shows this week (from Monday) and all time. After each question, **Fact check this section** opens the page the question came from, scrolled to that section, so anyone who spots something out of date can fix it right away.
+
+Trivia needs an LLM. Set it up once for everyone under **Settings**:
+
+- **Anthropic:** Claude models through the Anthropic API (default model `claude-opus-5-5`).
+- **OpenAI-compatible:** OpenAI, or any server with the same API, such as Ollama (`http://localhost:11434/v1` from your machine, or `http://host.docker.internal:11434/v1` from inside Docker), vLLM, or LiteLLM.
+
+The API key is encrypted in Postgres with `PONT_SECRET_KEY` and never sent back to the browser. **Set `PONT_SECRET_KEY` in `.env` to a long random value** (for example `openssl rand -base64 32`) before entering a real key; if you change it later, enter the API key again. There are no roles yet, so any signed-in user can change these settings.
+
 ## Services
 
 | Service | Role |

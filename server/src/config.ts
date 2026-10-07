@@ -14,6 +14,9 @@ export const config = {
   },
   redisUrl: required('REDIS_URL'),
   databaseUrl: required('DATABASE_URL'),
+  // Encrypts secrets stored in Postgres (the LLM API key). Changing it makes
+  // stored secrets unreadable; they must then be entered again.
+  secretKey: required('PONT_SECRET_KEY'),
   search: {
     embeddingModel: process.env.EMBEDDING_MODEL ?? 'Xenova/bge-small-en-v1.5',
     modelCacheDir: process.env.MODEL_CACHE_DIR ?? './models',
