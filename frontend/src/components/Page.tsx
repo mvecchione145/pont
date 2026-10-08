@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { api, ApiError, type Entry } from '../api';
 import { folderOf, href, nameOf, navigate } from '../route';
+import { ReviewPanel } from './ReviewPanel';
 // The editor (with CodeMirror for code blocks) is large, so load it on demand.
 const Editor = lazy(() => import('./Editor').then((m) => ({ default: m.Editor })));
 type EditorHandle = import('./Editor').EditorHandle;
@@ -64,6 +65,7 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
   const [moving, setMoving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [factCheck, setFactCheck] = useState(Boolean(section));
+  const [reviewing, setReviewing] = useState(false);
 
   // Autosave bookkeeping lives in refs so the editor's change handler never
   // goes stale. pathRef is the page's current path: a rename changes it in
@@ -286,6 +288,13 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
     }
   }
 
+  // Before a review reads or changes the page: save pending edits. False when
+  // they can't be saved (e.g. someone else edited the page meanwhile).
+  const saveNow = useCallback(async () => {
+    await flush();
+    return !blocked.current && latest.current === saved.current;
+  }, [flush]);
+
   if (loadError) {
     return (
       <div className="page">
@@ -304,7 +313,7 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
   }[saveState];
 
   return (
-    <div className="page-shell">
+    <div className={`page-shell ${reviewing ? 'with-panel' : ''}`}>
       <header className="page-bar">
         <nav className="breadcrumbs" aria-label="Breadcrumb">
           {folderParts.map((part, i) => (
@@ -325,6 +334,14 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
             onClick={() => editorRef.current?.openLinkPicker()}
           >
             ◇ Link
+          </button>
+          <button
+            className={`link-ontology ${reviewing ? 'active' : ''}`}
+            title="Suggestions to make this page clearer, and conflicts with other pages"
+            aria-pressed={reviewing}
+            onClick={() => setReviewing(!reviewing)}
+          >
+            ✦ Review
           </button>
           <div className="menu-anchor">
             <button
@@ -452,6 +469,16 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
           <p className="muted">Loading…</p>
         )}
       </div>
+
+      {reviewing && (
+        <ReviewPanel
+          path={path}
+          currentVersionId={entry?.versionId ?? null}
+          beforeApply={saveNow}
+          onApplied={() => setReloadCount((n) => n + 1)}
+          onClose={() => setReviewing(false)}
+        />
+      )}
     </div>
   );
 }

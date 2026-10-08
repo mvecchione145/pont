@@ -243,6 +243,59 @@ export interface PageVersion {
   proposedBy?: string;
   restoredFrom?: string;
   movedFrom?: string;
+  reviewId?: string;
+}
+
+export type ReviewItemState = 'open' | 'applied' | 'dismissed';
+
+export interface ReviewSuggestion {
+  id: string;
+  category: string;
+  quote: string;
+  replacement: string;
+  reason: string;
+  applicable: boolean;
+  state: ReviewItemState;
+}
+
+export interface ReviewConflict {
+  id: string;
+  quote: string;
+  found: boolean;
+  otherPath: string;
+  otherSection: string;
+  otherQuote: string;
+  explanation: string;
+  likelyCorrect: 'this_page' | 'other_page' | 'unclear';
+  replacement: string;
+  applicable: boolean;
+  state: ReviewItemState;
+}
+
+export interface PageReview {
+  id: string;
+  path: string;
+  versionId: string | null;
+  status: 'running' | 'succeeded' | 'failed';
+  startedBy: string;
+  provider: string;
+  model: string;
+  compared: string[];
+  result: { summary: string; suggestions: ReviewSuggestion[]; conflicts: ReviewConflict[] } | null;
+  usage: { inputTokens?: number; outputTokens?: number; costUsd?: number | null };
+  error: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export interface ReviewEstimate {
+  provider: string;
+  model: string;
+  compared: string[];
+  passages: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: { low: number; high: number } | null;
 }
 
 export interface PageVersionDetail extends PageVersion {
@@ -334,6 +387,13 @@ export const api = {
     for (const f of files) form.append('files', f.file);
     return request<ImportItem[]>('/api/uploads', { method: 'POST', body: form });
   },
+  latestReview: (path: string) => request<PageReview | null>(`/api/reviews?path=${encodeURIComponent(path)}`),
+  reviewEstimate: (path: string) =>
+    request<ReviewEstimate | null>(`/api/reviews/estimate?path=${encodeURIComponent(path)}`),
+  startReview: (path: string) => request<PageReview>('/api/reviews', json('POST', { path })),
+  review: (id: string) => request<PageReview>(`/api/reviews/${id}`),
+  decideReviewItem: (id: string, item: string, action: 'apply' | 'dismiss') =>
+    request<PageReview>(`/api/reviews/${id}/items/${item}`, json('POST', { action })),
   ontology: () => request<Ontology>('/api/ontology'),
   ontologyChanges: () => request<ChangePreview>('/api/ontology/changes'),
   ontologyRuns: () => request<OntologyRun[]>('/api/ontology/runs'),

@@ -14,6 +14,7 @@ function Badges({ v }: { v: PageVersion }) {
       {v.proposedBy && <span className="pill">From {v.proposedBy}’s agent</span>}
       {v.restoredFrom && <span className="pill">Restored</span>}
       {v.movedFrom && <span className="pill">Moved here</span>}
+      {v.reviewId && <span className="pill">From a review</span>}
     </span>
   );
 }

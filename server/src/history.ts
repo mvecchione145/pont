@@ -32,6 +32,7 @@ export interface Version {
   proposedBy?: string;
   restoredFrom?: string;
   movedFrom?: string;
+  reviewId?: string;
 }
 
 const decode = (value?: string) => (value ? decodeURIComponent(value) : undefined);
@@ -44,6 +45,7 @@ function provenance(meta: Record<string, string> | undefined): Partial<Version> 
     proposedBy: decode(meta['proposed-by']),
     restoredFrom: meta['restored-from'],
     movedFrom: decode(meta['moved-from']),
+    reviewId: meta['review-id'],
   };
 }
 

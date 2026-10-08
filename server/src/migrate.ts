@@ -124,5 +124,25 @@ export async function migrate(): Promise<void> {
       PRIMARY KEY (path, kind, target)
     );
     CREATE INDEX IF NOT EXISTS ontology_links_target ON ontology_links (kind, target);
+
+    -- Page reviews: an LLM reads one page (and related passages from other
+    -- pages) and suggests clearer wording and points out contradictions.
+    CREATE TABLE IF NOT EXISTS page_reviews (
+      id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      path            text NOT NULL,
+      version_id      text,
+      status          text NOT NULL,
+      started_by      text NOT NULL,
+      started_by_name text NOT NULL,
+      provider        text NOT NULL,
+      model           text NOT NULL,
+      compared        jsonb NOT NULL DEFAULT '[]',
+      result          jsonb,
+      usage           jsonb NOT NULL DEFAULT '{}',
+      error           text,
+      started_at      timestamptz NOT NULL DEFAULT now(),
+      finished_at     timestamptz
+    );
+    CREATE INDEX IF NOT EXISTS page_reviews_path ON page_reviews (path, started_at DESC);
   `);
 }

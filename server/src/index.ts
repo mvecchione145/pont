@@ -14,6 +14,8 @@ import { uploadsRouter, uploadErrors } from './routes/uploads.js';
 import { ontologyRouter, ontologyErrors } from './routes/ontology.js';
 import { proposalsRouter, proposalErrors } from './routes/proposals.js';
 import { historyRouter, historyErrors } from './routes/history.js';
+import { reviewsRouter, reviewErrors } from './routes/reviews.js';
+import { failInterruptedReviews } from './review.js';
 import { failInterruptedRuns } from './ontology/runs.js';
 import { startLinkIndex } from './ontology/links.js';
 import { startIndexer } from './search/index.js';
@@ -52,10 +54,12 @@ app.use('/api/uploads', uploadsRouter, uploadErrors);
 app.use('/api/ontology', ontologyRouter, ontologyErrors);
 app.use('/api/proposals', proposalsRouter, proposalErrors);
 app.use('/api/history', historyRouter, historyErrors);
+app.use('/api/reviews', reviewsRouter, reviewErrors);
 
 await redis.connect();
 await migrate();
 await failInterruptedRuns();
+await failInterruptedReviews();
 
 const server = app.listen(config.port, () => {
   console.log(`pont server listening on port ${config.port}`);
