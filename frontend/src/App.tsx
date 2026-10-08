@@ -9,6 +9,7 @@ import { SearchDialog } from './components/SearchDialog';
 import { Trivia } from './components/Trivia';
 import { Settings } from './components/Settings';
 import { UploadDialog } from './components/UploadDialog';
+import { OntologyPage } from './components/OntologyPage';
 
 export default function App() {
   const route = useRoute();
@@ -103,6 +104,11 @@ export default function App() {
         {route.view === 'trivia' && (
           <div className="page wide">
             <Trivia user={user} />
+          </div>
+        )}
+        {route.view === 'ontology' && (
+          <div className="page wide">
+            <OntologyPage />
           </div>
         )}
         {route.view === 'settings' && (

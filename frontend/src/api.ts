@@ -109,6 +109,78 @@ export interface ImportItem {
   notes?: string[];
 }
 
+export interface OntologySource {
+  path: string;
+  quote: string;
+}
+
+export interface Concept {
+  id: string;
+  name: string;
+  type: string;
+  definition: string;
+  aliases: string[];
+  sources: OntologySource[];
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface Relation {
+  id: string;
+  from: string;
+  type: string;
+  to: string;
+  sources: OntologySource[];
+}
+
+export interface Ontology {
+  concepts: Concept[];
+  relations: Relation[];
+}
+
+export interface ChangePreview {
+  added: string[];
+  modified: string[];
+  deleted: string[];
+  total: number;
+  estimate: {
+    provider: string;
+    model: string;
+    batches: number;
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: { low: number; high: number } | null;
+  } | null;
+}
+
+export interface OntologyRun {
+  id: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  startedBy: string;
+  provider: string;
+  model: string;
+  changes: { added: string[]; modified: string[]; deleted: string[] };
+  progress: { workflow?: string; batch?: number; batches?: number; recommendations?: number };
+  usage: { inputTokens?: number; outputTokens?: number; modelCalls?: number; costUsd?: number | null };
+  error: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+  recommendations: number;
+}
+
+export interface OntologyRecommendation {
+  id: string;
+  runId: string;
+  workflow: 'maintain' | 'create';
+  action: 'create_concept' | 'update_concept' | 'delete_concept' | 'add_alias' | 'create_relation' | 'delete_relation';
+  payload: Record<string, unknown>;
+  rationale: string;
+  evidence: OntologySource[];
+  confidence: number;
+  status: string;
+  error: string | null;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -187,6 +259,18 @@ export const api = {
     for (const f of files) form.append('files', f.file);
     return request<ImportItem[]>('/api/uploads', { method: 'POST', body: form });
   },
+  ontology: () => request<Ontology>('/api/ontology'),
+  ontologyChanges: () => request<ChangePreview>('/api/ontology/changes'),
+  ontologyRuns: () => request<OntologyRun[]>('/api/ontology/runs'),
+  ontologyRun: (id: string) => request<OntologyRun>(`/api/ontology/runs/${id}`),
+  startOntologyRun: () => request<OntologyRun>('/api/ontology/runs', { method: 'POST' }),
+  cancelOntologyRun: (id: string) => request<OntologyRun>(`/api/ontology/runs/${id}/cancel`, { method: 'POST' }),
+  ontologyRecommendations: () => request<OntologyRecommendation[]>('/api/ontology/recommendations'),
+  approveRecommendation: (id: string) =>
+    request<{ status: 'approved' | 'failed'; message: string }>(`/api/ontology/recommendations/${id}/approve`, {
+      method: 'POST',
+    }),
+  rejectRecommendation: (id: string) => request<void>(`/api/ontology/recommendations/${id}/reject`, { method: 'POST' }),
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>
     request<{ token: string; info: TokenInfo }>('/api/tokens', {

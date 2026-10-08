@@ -11,6 +11,8 @@ import { searchRouter } from './routes/search.js';
 import { settingsRouter } from './routes/settings.js';
 import { triviaRouter, triviaErrors } from './routes/trivia.js';
 import { uploadsRouter, uploadErrors } from './routes/uploads.js';
+import { ontologyRouter, ontologyErrors } from './routes/ontology.js';
+import { failInterruptedRuns } from './ontology/runs.js';
 import { startIndexer } from './search/index.js';
 
 const app = express();
@@ -44,9 +46,11 @@ app.use('/api/search', searchRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/trivia', triviaRouter, triviaErrors);
 app.use('/api/uploads', uploadsRouter, uploadErrors);
+app.use('/api/ontology', ontologyRouter, ontologyErrors);
 
 await redis.connect();
 await migrate();
+await failInterruptedRuns();
 
 const server = app.listen(config.port, () => {
   console.log(`pont server listening on port ${config.port}`);

@@ -43,5 +43,51 @@ export async function migrate(): Promise<void> {
     CREATE INDEX IF NOT EXISTS trivia_questions_user ON trivia_questions (user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS trivia_questions_answered ON trivia_questions (answered_at)
       WHERE is_correct IS NOT NULL;
+
+    -- Ontology: the state of each page as of the last calculation, the
+    -- calculation runs, and the recommendations they produce for review.
+    CREATE TABLE IF NOT EXISTS ontology_snapshots (
+      path          text PRIMARY KEY,
+      version_id    text NOT NULL,
+      content_hash  text NOT NULL,
+      run_id        uuid NOT NULL,
+      calculated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS ontology_runs (
+      id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      status           text NOT NULL,
+      started_by       text NOT NULL,
+      started_by_name  text NOT NULL,
+      provider         text NOT NULL,
+      model            text NOT NULL,
+      changes          jsonb NOT NULL,
+      progress         jsonb NOT NULL DEFAULT '{}'::jsonb,
+      usage            jsonb NOT NULL DEFAULT '{}'::jsonb,
+      error            text,
+      cancel_requested boolean NOT NULL DEFAULT false,
+      started_at       timestamptz NOT NULL DEFAULT now(),
+      finished_at      timestamptz
+    );
+    CREATE INDEX IF NOT EXISTS ontology_runs_started ON ontology_runs (started_at DESC);
+
+    CREATE TABLE IF NOT EXISTS ontology_recommendations (
+      id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      run_id      uuid NOT NULL REFERENCES ontology_runs (id),
+      workflow    text NOT NULL,
+      action      text NOT NULL,
+      payload     jsonb NOT NULL,
+      rationale   text NOT NULL,
+      evidence    jsonb NOT NULL,
+      confidence  real NOT NULL,
+      fingerprint text NOT NULL,
+      status      text NOT NULL DEFAULT 'pending',
+      decided_by  text,
+      decided_at  timestamptz,
+      error       text,
+      created_at  timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS ontology_recommendations_status ON ontology_recommendations (status, created_at);
+    CREATE INDEX IF NOT EXISTS ontology_recommendations_fingerprint ON ontology_recommendations (fingerprint);
   `);
 }

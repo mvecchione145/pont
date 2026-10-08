@@ -230,6 +230,24 @@ Keeps people engaged with the documentation, and turns spotting stale content in
 - [x] Anthropic (official SDK) or any OpenAI-compatible endpoint, configured once on a Settings page
 - [x] The API key is encrypted at rest and never returned to the browser
 
+
+## Epic 8 — Ontology *(post-MVP)*
+
+Turns free-text documentation into explicit concepts and relationships that people and agents can rely on, with AI doing the reading and people deciding what's true.
+
+**8.1** As a **Domain Expert**, I want to calculate the ontology on demand, so that I control when LLM costs are incurred.
+- [x] A **Calculate** button on the Ontology page, with a confirmation that lists the changed pages and estimates tokens and cost
+- [x] Only pages added, changed, or deleted since the last calculation are analysed (snapshots of each page's state)
+
+**8.2** As a **Domain Expert**, I want agents to keep the existing ontology accurate as pages change, so that it doesn't go stale.
+- [x] A *maintain* workflow (Strands agent) recommends updates and deletions for concepts and relationships drawn from changed or deleted pages
+
+**8.3** As a **Domain Expert**, I want agents to find new concepts and relationships, so that the ontology grows with the documentation.
+- [x] A *create* workflow (Strands agent) recommends new concepts, aliases, and relationships, checking the existing ontology to avoid duplicates
+
+**8.4** As a **Domain Expert**, I want to approve or reject every recommendation, so that the ontology only contains what we agree is true.
+- [x] Every recommendation quotes its evidence, verified against the page
+- [x] Approval applies it to `ontology.yaml`; rejection is remembered so it isn't suggested again
 ---
 
 ## Open questions

@@ -7,6 +7,7 @@ export type Route =
   | { view: 'tokens' }
   | { view: 'trivia' }
   | { view: 'settings' }
+  | { view: 'ontology' }
   | { view: 'page'; path: string; section?: string };
 
 function parse(hash: string): Route {
@@ -18,7 +19,7 @@ function parse(hash: string): Route {
     const section = new URLSearchParams(query).get('section') ?? undefined;
     return { view: 'page', path, section };
   }
-  if (view === 'tokens' || view === 'trivia' || view === 'settings') return { view };
+  if (view === 'tokens' || view === 'trivia' || view === 'settings' || view === 'ontology') return { view };
   return { view: 'home' };
 }
 
@@ -29,6 +30,7 @@ export function href(route: Route): string {
     case 'tokens':
     case 'trivia':
     case 'settings':
+    case 'ontology':
       return `#/${route.view}`;
     case 'page': {
       const base = `#/p/${route.path.split('/').map(encodeURIComponent).join('/')}`;

@@ -57,8 +57,8 @@ function validate(raw: unknown): GeneratedQuestion {
 
 // Server-side refusal fallbacks and effort apply to current Claude models on
 // Anthropic's API; skip them for older models and custom endpoints.
-const supportsFallbacks = (model: string) => /^claude-(opus-5|fable-5|sonnet-5-5)/.test(model);
-const supportsEffort = (model: string) => /^claude-(opus-5|fable-5|sonnet-5|opus-4-[5-8]|sonnet-4-6)/.test(model);
+export const supportsFallbacks = (model: string) => /^claude-(opus-5|fable-5|sonnet-5-5)/.test(model);
+export const supportsEffort = (model: string) => /^claude-(opus-5|fable-5|sonnet-5|opus-4-[5-8]|sonnet-4-6)/.test(model);
 
 async function withAnthropic(settings: LlmSettings, passage: Passage): Promise<GeneratedQuestion> {
   const client = new Anthropic({ apiKey: settings.apiKey, baseURL: settings.baseUrl || undefined });

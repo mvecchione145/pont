@@ -88,6 +88,19 @@ Click **Upload** in the sidebar, then drop files or whole folders (or use **Choo
 
 Before anything is written, a preview lists every file with its destination page. Files that would replace an existing page are **skipped unless you tick "Replace existing"**; replaced pages keep their previous versions in history. Hidden files (such as `.DS_Store` and `.git/`) and unsupported types are skipped. Limits: 10 MB per file, 50 MB and 500 files per upload. Imported pages are searchable and available to agents a few seconds later.
 
+### Ontology
+
+The **Ontology** page holds the concepts your documentation defines (metrics, processes, decisions, policies, systems, teams, and terms) and typed relationships between them, such as *Weekly active users calculated from Sessions*. It is stored as `ontology/ontology.yaml` in the bucket, versioned like the pages.
+
+The ontology is built by two AI agents ([Strands Agents](https://strandsagents.com) TypeScript SDK) that you run with **Calculate**:
+
+1. pont compares every page with its state at the last calculation and finds the pages that were added, changed, or deleted. Changed pages are shown to the agents as diffs.
+2. A confirmation dialog lists those pages and estimates tokens and cost. **Calculating sends the changed pages to the LLM configured in Settings and incurs its costs.**
+3. The *maintain* agent checks what the ontology says about changed and deleted pages and recommends updates or deletions. The *create* agent reads new and changed content and recommends new concepts, aliases, and relationships, checking the existing ontology first so it doesn't duplicate anything.
+4. Every recommendation must quote the page passage that supports it; pont checks that the quote is really there before saving it. **Nothing changes until someone approves it** on the Ontology page. Rejected recommendations aren't suggested again.
+
+Only one calculation runs at a time, and it can be cancelled. If a run fails or is cancelled, the next one looks at the same changes again. Each agent call is capped in model calls, and every run records its token usage.
+
 ### Trivia
 
 **Trivia** (in the sidebar) asks multiple-choice questions written on the fly from a random section of your documentation: +1 for a correct answer, −1 for a wrong one. The leaderboard shows this week (from Monday) and all time. After each question, **Fact check this section** opens the page the question came from, scrolled to that section, so anyone who spots something out of date can fix it right away.

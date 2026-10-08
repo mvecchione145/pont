@@ -123,6 +123,14 @@ export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload }:
         </a>
         <a
           className="row row-main"
+          href={href({ view: 'ontology' })}
+          aria-current={route.view === 'ontology' ? 'page' : undefined}
+        >
+          <span className="page-icon">◇</span>
+          <span className="row-label">Ontology</span>
+        </a>
+        <a
+          className="row row-main"
           href={href({ view: 'trivia' })}
           aria-current={route.view === 'trivia' ? 'page' : undefined}
         >

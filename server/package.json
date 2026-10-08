@@ -20,6 +20,8 @@
     "@huggingface/transformers": "^4.3.1",
     "@joplin/turndown-plugin-gfm": "^1.0.68",
     "@modelcontextprotocol/sdk": "^1.32.1",
+    "@strands-agents/sdk": "^1.20.0",
+    "diff": "^9.0.0",
     "express": "^5.2.1",
     "jose": "^6.2.12",
     "mammoth": "^1.13.0",
@@ -29,6 +31,7 @@
     "redis": "^6.3.0",
     "turndown": "^7.2.4",
     "unpdf": "^1.8.1",
+    "yaml": "^2.9.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -41,6 +44,10 @@
     "typescript": "^7.0.2"
   },
   "overrides": {
-    "argparse": "^2.0.1"
+    "argparse": "^2.0.1",
+    "@strands-agents/sdk": {
+      "@anthropic-ai/sdk": "$@anthropic-ai/sdk",
+      "openai": "$openai"
+    }
   }
 }

@@ -79,6 +79,21 @@ button:hover {
   background: var(--hover);
 }
 
+button:disabled,
+.button[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  background: inherit;
+}
+
+.primary:disabled:hover {
+  background: var(--accent);
+  filter: none;
+}
+
 .primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -1253,4 +1268,220 @@ button.row-main.row:hover {
 
 .upload-results li {
   margin: 0.25rem 0;
+}
+
+/* Ontology */
+
+.ontology-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.ontology-head .lead {
+  margin-bottom: 1rem;
+}
+
+.calculate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  padding-top: 0.75rem;
+  min-width: 14rem;
+  text-align: right;
+}
+
+.calculate .primary {
+  padding: 0.45rem 1.4rem;
+  font-size: 15px;
+}
+
+.calculate .hint {
+  font-size: 13px;
+}
+
+.run-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  font-size: 14px;
+  margin-bottom: 1rem;
+}
+
+.last-run {
+  font-size: 13px;
+}
+
+.rec-group h3,
+.concept-group h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-soft);
+  margin: 1.25rem 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rec-group ul,
+.concept-group ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rec-card {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
+  list-style: none;
+}
+
+.rec-card.destructive {
+  border-left: 3px solid var(--down);
+}
+
+.rec-main {
+  min-width: 0;
+  font-size: 14px;
+}
+
+.rec-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.rec-detail,
+.rec-rationale {
+  margin: 0.3rem 0 0;
+}
+
+.evidence {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0 0;
+  font-size: 13px;
+}
+
+.evidence li {
+  margin: 0.2rem 0;
+  color: var(--fg-soft);
+}
+
+.evidence q {
+  font-style: italic;
+  color: var(--fg);
+}
+
+.rec-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.rec-notice {
+  list-style: none;
+  font-size: 13px;
+  margin: -0.25rem 0 0.75rem 1rem;
+}
+
+.concept-filter {
+  width: 100%;
+  max-width: 24rem;
+  margin-bottom: 0.5rem;
+}
+
+.concept {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.concept p {
+  margin: 0.25rem 0 0;
+}
+
+.concept .relations,
+.concept .sources {
+  font-size: 13px;
+}
+
+.runs {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.runs th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--fg-soft);
+}
+
+.runs th,
+.runs td {
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.confirm-dialog {
+  width: min(560px, 100%);
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 0.75rem;
+  font-size: 19px;
+}
+
+.cost-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.cost-box > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.cost-box .muted {
+  font-size: 12px;
+}
+
+.change-list {
+  font-size: 13px;
+  max-height: 30vh;
+  overflow: auto;
+}
+
+.change-list ul {
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 1.1rem;
+}
+
+.actions.end {
+  justify-content: flex-end;
 }
