@@ -113,5 +113,16 @@ export async function migrate(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS page_proposals_status ON page_proposals (status, created_at);
     CREATE INDEX IF NOT EXISTS page_proposals_proposer ON page_proposals (proposed_by, status);
+
+    -- Which pages link to which ontology concepts and relationships
+    -- (Markdown links to #/concept/<id> and #/relation/<id>). Derived from
+    -- the pages; rebuilt on every start.
+    CREATE TABLE IF NOT EXISTS ontology_links (
+      path   text NOT NULL,
+      kind   text NOT NULL,
+      target text NOT NULL,
+      PRIMARY KEY (path, kind, target)
+    );
+    CREATE INDEX IF NOT EXISTS ontology_links_target ON ontology_links (kind, target);
   `);
 }

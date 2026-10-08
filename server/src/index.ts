@@ -15,6 +15,7 @@ import { ontologyRouter, ontologyErrors } from './routes/ontology.js';
 import { proposalsRouter, proposalErrors } from './routes/proposals.js';
 import { historyRouter, historyErrors } from './routes/history.js';
 import { failInterruptedRuns } from './ontology/runs.js';
+import { startLinkIndex } from './ontology/links.js';
 import { startIndexer } from './search/index.js';
 
 const app = express();
@@ -63,6 +64,7 @@ const server = app.listen(config.port, () => {
 // Loads the embedding model and builds or catches up the search index in the
 // background; search answers 503 until it is ready.
 void startIndexer();
+void startLinkIndex();
 
 async function shutdown() {
   server.close();

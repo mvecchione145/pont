@@ -51,7 +51,7 @@ The user can now sign in at http://localhost:3000.
 
 Claude Code can then call pont's MCP tools as you:
 
-- **Read:** `search`, `read_entry`, `list_entries`
+- **Read:** `search`, `read_entry`, `list_entries`, `get_concept`, `list_concepts`
 - **Propose** (reviewed by a person before anything changes): `propose_edit`, `propose_new_page`, `propose_concept`, `propose_alias`, `propose_relation`, and `list_my_proposals` to see what happened to them
 
 Revoke a token on the same page when you no longer need it.
@@ -118,6 +118,10 @@ The ontology is built by two AI agents ([Strands Agents](https://strandsagents.c
 2. A confirmation dialog lists those pages and estimates tokens and cost. **Calculating sends the changed pages to the LLM configured in Settings and incurs its costs.**
 3. The *maintain* agent checks what the ontology says about changed and deleted pages and recommends updates or deletions. The *create* agent reads new and changed content and recommends new concepts, aliases, and relationships, checking the existing ontology first so it doesn't duplicate anything.
 4. Every recommendation must quote the page passage that supports it; pont checks that the quote is really there before saving it. **Nothing changes until someone approves it** on the Ontology page. Rejected recommendations aren't suggested again.
+
+Every concept and relationship has its own page (`#/concept/<id>`, `#/relation/<id>`) where people can edit or delete it directly, add relationships, and see which pages link to it. Relationships can have a name and description (for example *Peanut Butter & Jelly*), and **＋ New concept** on the Ontology page adds one by hand.
+
+**Linking text to the ontology.** In a page, type `[[` followed by a few letters, or select text and press **⌘⇧K** (Ctrl+Shift+K) or click **◇ Link** in the page bar. A picker lists matching concepts and relationships (Ontology | Type | Description), with an option to create a new concept on the spot. The link is saved as plain Markdown, `[peanut butter](#/concept/peanut-butter)`, so agents can follow it with the `get_concept` MCP tool. ⌘-click (Ctrl-click) a link in the editor to open its concept.
 
 Only one calculation runs at a time, and it can be cancelled. If a run fails or is cancelled, the next one looks at the same changes again. Each agent call is capped in model calls, and every run records its token usage.
 

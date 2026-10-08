@@ -10,6 +10,7 @@ import { listProposals, proposeEdit, proposeNewPage, ProposalError } from './pro
 import { verifyEvidence } from './ontology/evidence.js';
 import { saveRecommendation, type Recommendation } from './ontology/recommendations.js';
 import { CONCEPT_TYPES, findConcept, readOntology, RELATION_TYPES } from './ontology/store.js';
+import { conceptDetail, relationDetail, relationLabel } from './ontology/edit.js';
 
 const INSTRUCTIONS = `pont holds this organization's knowledge, written by the people who know it:
 business definitions and metrics, decisions and their reasoning, and processes.
@@ -17,6 +18,10 @@ Check pont before assuming how this organization works. Start with search,
 which finds relevant passages by meaning and by exact terms; then read_entry to
 read a whole entry. list_entries shows everything that exists, optionally
 within a folder.
+
+Pages may link terms to the ontology, e.g. [WAU](#/concept/weekly-active-users)
+or [..](#/relation/<id>): use get_concept for a concept's definition, aliases,
+relationships, and the pages that link to it. list_concepts lists them all.
 
 If you find something missing, outdated, or contradictory, you can propose a
 fix: propose_edit or propose_new_page for pages, and propose_concept,
@@ -135,8 +140,71 @@ function buildServer(user: User): McpServer {
     },
   );
 
+  registerOntologyTools(server);
   registerProposalTools(server, user);
   return server;
+}
+
+function registerOntologyTools(server: McpServer) {
+  server.registerTool(
+    'get_concept',
+    {
+      title: 'Get an ontology concept or relationship',
+      description:
+        'Returns a concept (by id, name, or alias) with its type, definition, aliases, relationships, and the pages ' +
+        'that link to it. Also accepts a relationship id from a #/relation/<id> link.',
+      inputSchema: { concept: z.string().describe('Concept id, name, or alias; or a relationship id') },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ concept }) => {
+      const { ontology } = await readOntology();
+      const c = findConcept(ontology, concept);
+      if (c) {
+        const d = await conceptDetail(c.id);
+        return text(
+          [
+            `${d.name} (${d.type}, id ${d.id})`,
+            d.aliases.length ? `Also called: ${d.aliases.join(', ')}` : '',
+            d.definition ? `Definition: ${d.definition}` : '',
+            d.relations.length ? `Relationships:\n${d.relations.map((r) => `- ${r.label} [${r.id}]${r.description ? `: ${r.description}` : ''}`).join('\n')}` : '',
+            d.linkedFrom.length ? `Linked from pages: ${d.linkedFrom.join(', ')}` : '',
+            d.sources.length ? `Sources: ${[...new Set(d.sources.map((s) => s.path))].join(', ')}` : '',
+          ].filter(Boolean).join('\n'),
+        );
+      }
+      if (ontology.relations.some((r) => r.id === concept.trim())) {
+        const r = await relationDetail(concept.trim());
+        return text(
+          [
+            `${r.label} (relationship, id ${r.id})`,
+            `${r.fromConcept?.name ?? r.from} ${r.type.replace(/_/g, ' ')} ${r.toConcept?.name ?? r.to}`,
+            r.description ? `Description: ${r.description}` : '',
+            r.linkedFrom.length ? `Linked from pages: ${r.linkedFrom.join(', ')}` : '',
+          ].filter(Boolean).join('\n'),
+        );
+      }
+      return text(`No concept or relationship "${concept}". Try list_concepts.`, true);
+    },
+  );
+
+  server.registerTool(
+    'list_concepts',
+    {
+      title: 'List ontology concepts',
+      description: 'Lists every concept in the ontology (id, name, type, aliases) and the relationships between them.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () => {
+      const { ontology } = await readOntology();
+      if (!ontology.concepts.length) return text('The ontology is empty.');
+      const concepts = ontology.concepts.map(
+        (c) => `- ${c.name} (${c.type}, id ${c.id})${c.aliases.length ? `, also ${c.aliases.join(', ')}` : ''}`,
+      );
+      const relations = ontology.relations.map((r) => `- ${relationLabel(ontology, r)} [${r.id}]`);
+      return text(`Concepts:\n${concepts.join('\n')}${relations.length ? `\n\nRelationships:\n${relations.join('\n')}` : ''}`);
+    },
+  );
 }
 
 function registerProposalTools(server: McpServer, user: User) {

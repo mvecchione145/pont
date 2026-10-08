@@ -42,6 +42,10 @@ export interface Relation {
   from: string;
   type: RelationType;
   to: string;
+  // Optional, for relationships people refer to by name ("Peanut butter &
+  // jelly") rather than as "from type to".
+  name?: string;
+  description?: string;
   sources: Source[];
   updatedBy: string;
   updatedAt: string;

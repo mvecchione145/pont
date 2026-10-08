@@ -1,13 +1,14 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   api,
+  CONCEPT_TYPES,
   type ChangePreview,
   type Concept,
   type Ontology,
   type OntologyRecommendation,
   type OntologyRun,
 } from '../api';
-import { href } from '../route';
+import { href, navigate } from '../route';
 
 const POLL_MS = 2000;
 
@@ -205,17 +206,21 @@ function ConceptList({ ontology }: { ontology: Ontology }) {
   const relationsOf = (c: Concept) =>
     ontology.relations
       .filter((r) => r.from === c.id || r.to === c.id)
-      .map((r) =>
-        r.from === c.id
-          ? `${humanType(r.type)} ${byId.get(r.to)?.name ?? r.to}`
-          : `${byId.get(r.from)?.name ?? r.from} ${humanType(r.type)} this`,
-      );
+      .map((r) => ({
+        id: r.id,
+        label:
+          r.name ??
+          (r.from === c.id
+            ? `${humanType(r.type)} ${byId.get(r.to)?.name ?? r.to}`
+            : `${byId.get(r.from)?.name ?? r.from} ${humanType(r.type)} this`),
+      }));
 
-  if (ontology.concepts.length === 0) {
-    return <p className="muted">No concepts yet. Calculate to get recommendations, then approve the ones you agree with.</p>;
-  }
   return (
     <>
+      <NewConcept />
+      {ontology.concepts.length === 0 && (
+        <p className="muted">No concepts yet. Add one, or Calculate to get recommendations and approve the ones you agree with.</p>
+      )}
       <input className="concept-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter concepts" />
       {types.map((type) => (
         <div key={type} className="concept-group">
@@ -226,11 +231,25 @@ function ConceptList({ ontology }: { ontology: Ontology }) {
               .map((c) => (
                 <li key={c.id} className="concept">
                   <div>
-                    <strong>{c.name}</strong>
+                    <strong>
+                      <a className="concept-link" href={href({ view: 'concept', id: c.id })}>
+                        {c.name}
+                      </a>
+                    </strong>
                     {c.aliases.length > 0 && <span className="muted"> · {c.aliases.join(', ')}</span>}
                   </div>
                   {c.definition && <p>{c.definition}</p>}
-                  {relationsOf(c).length > 0 && <p className="muted relations">→ {relationsOf(c).join(' · ')}</p>}
+                  {relationsOf(c).length > 0 && (
+                    <p className="muted relations">
+                      →{' '}
+                      {relationsOf(c).map((r, i) => (
+                        <span key={r.id}>
+                          {i > 0 && ' · '}
+                          <a href={href({ view: 'relation', id: r.id })}>{r.label}</a>
+                        </span>
+                      ))}
+                    </p>
+                  )}
                   <p className="muted sources">
                     From{' '}
                     {[...new Map(c.sources.map((s) => [s.path, s])).values()].map((s, i) => (
@@ -246,6 +265,50 @@ function ConceptList({ ontology }: { ontology: Ontology }) {
         </div>
       ))}
     </>
+  );
+}
+
+function NewConcept() {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [type, setType] = useState<string>('Term');
+  const [definition, setDefinition] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  if (!open) {
+    return (
+      <button className="new-concept" onClick={() => setOpen(true)}>
+        ＋ New concept
+      </button>
+    );
+  }
+  return (
+    <form
+      className="new-concept-form"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        try {
+          const c = await api.createConcept({ name, type, definition });
+          navigate({ view: 'concept', id: c.id });
+        } catch (err) {
+          setError((err as Error).message);
+        }
+      }}
+    >
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required autoFocus />
+      <select value={type} onChange={(e) => setType(e.target.value)}>
+        {CONCEPT_TYPES.map((t) => (
+          <option key={t}>{t}</option>
+        ))}
+      </select>
+      <input value={definition} onChange={(e) => setDefinition(e.target.value)} placeholder="Definition (optional)" />
+      <button type="submit" className="primary">
+        Create
+      </button>
+      <button type="button" onClick={() => setOpen(false)}>
+        Cancel
+      </button>
+      {error && <span className="down">{error}</span>}
+    </form>
   );
 }
 

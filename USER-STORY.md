@@ -251,6 +251,15 @@ Turns free-text documentation into explicit concepts and relationships that peop
 **8.4** As a **Domain Expert**, I want to approve or reject every recommendation, so that the ontology only contains what we agree is true.
 - [x] Every recommendation quotes its evidence, verified against the page
 - [x] Approval applies it to `ontology.yaml`; rejection is remembered so it isn't suggested again
+
+**8.5** As a **Domain Expert**, I want a page for every concept and relationship that I can edit or delete, so that I can correct the ontology directly.
+- [x] Concept and relationship pages with edit, delete (warning when pages link to it), and adding relationships
+- [x] Relationships can have a name and description
+- [x] Each page lists the documentation that links to it
+
+**8.6** As a **Domain Expert**, I want to link words in the documentation to ontology concepts, so that readers and agents know exactly what a term means.
+- [x] Typing `[[` or pressing ⌘⇧K opens a picker of matching concepts and relationships (name, type, description), with "create concept" when nothing fits
+- [x] Links are plain Markdown (`#/concept/<id>`), and agents can resolve them with the `get_concept` MCP tool
 ---
 
 ## Open questions

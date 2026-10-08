@@ -130,8 +130,35 @@ export interface Relation {
   from: string;
   type: string;
   to: string;
+  name?: string;
+  description?: string;
   sources: OntologySource[];
+  updatedBy?: string;
+  updatedAt?: string;
 }
+
+export interface ConceptDetail extends Concept {
+  relations: (Relation & { label: string; fromName: string; toName: string })[];
+  linkedFrom: string[];
+}
+
+export interface RelationDetail extends Relation {
+  label: string;
+  fromConcept: Concept | null;
+  toConcept: Concept | null;
+  linkedFrom: string[];
+}
+
+export interface OntologyHit {
+  kind: 'concept' | 'relation';
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+}
+
+export const CONCEPT_TYPES = ['Metric', 'Process', 'Decision', 'Policy', 'System', 'Team', 'Term'] as const;
+export const RELATION_TYPES = ['calculated_from', 'depends_on', 'part_of', 'owned_by', 'uses', 'related_to'] as const;
 
 export interface Ontology {
   concepts: Concept[];
@@ -242,6 +269,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
+const json = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
 const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
 const entryUrl = (path: string) => `/api/entries/${encodePath(path)}`;
 
@@ -338,6 +370,23 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ restore: versionId }),
     }),
+  searchOntology: (q: string) => request<OntologyHit[]>(`/api/ontology/search?${new URLSearchParams({ q })}`),
+  concept: (id: string) => request<ConceptDetail>(`/api/ontology/concepts/${encodeURIComponent(id)}`),
+  createConcept: (body: { name: string; type: string; definition?: string; aliases?: string[] }) =>
+    request<Concept>('/api/ontology/concepts', json('POST', body)),
+  updateConcept: (id: string, body: Record<string, unknown>) =>
+    request<Concept>(`/api/ontology/concepts/${encodeURIComponent(id)}`, json('PUT', body)),
+  deleteConcept: (id: string) =>
+    request<{ relationsRemoved: number; linkedFrom: string[] }>(`/api/ontology/concepts/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+  relation: (id: string) => request<RelationDetail>(`/api/ontology/relations/${encodeURIComponent(id)}`),
+  createRelation: (body: { from: string; type: string; to: string; name?: string; description?: string }) =>
+    request<Relation>('/api/ontology/relations', json('POST', body)),
+  updateRelation: (id: string, body: Record<string, unknown>) =>
+    request<Relation>(`/api/ontology/relations/${encodeURIComponent(id)}`, json('PUT', body)),
+  deleteRelation: (id: string) =>
+    request<{ linkedFrom: string[] }>(`/api/ontology/relations/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>
     request<{ token: string; info: TokenInfo }>('/api/tokens', {

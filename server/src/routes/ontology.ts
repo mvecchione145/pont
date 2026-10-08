@@ -3,6 +3,19 @@ import { ApplyError, approve, reject } from '../ontology/apply.js';
 import { listRecommendations } from '../ontology/recommendations.js';
 import { cancelRun, getRun, listRuns, previewChanges, RunError, startRun } from '../ontology/runs.js';
 import { OntologyConflictError, readOntology } from '../ontology/store.js';
+import {
+  conceptDetail,
+  createConcept,
+  createRelation,
+  deleteConcept,
+  deleteRelation,
+  EditError,
+  relationDetail,
+  searchOntology,
+  updateConcept,
+  updateRelation,
+} from '../ontology/edit.js';
+import { backlinks } from '../ontology/links.js';
 
 export const ontologyRouter = Router();
 
@@ -14,6 +27,50 @@ const id = (raw: string) => {
 
 ontologyRouter.get('/', async (_req, res) => {
   res.json((await readOntology()).ontology);
+});
+
+// Autocomplete for linking text to the ontology.
+ontologyRouter.get('/search', async (req, res) => {
+  res.json(await searchOntology(typeof req.query.q === 'string' ? req.query.q : ''));
+});
+
+// Concept and relationship ids are slugs like "weekly-active-users" or
+// "weekly-active-users--calculated_from--sessions".
+const SLUG = /^[a-z0-9][a-z0-9_-]*$/;
+const slug = (raw: string) => {
+  if (!SLUG.test(raw)) throw new EditError('Not found.', 404);
+  return raw;
+};
+
+ontologyRouter.post('/concepts', async (req, res) => {
+  res.status(201).json(await createConcept(req.body ?? {}, req.user!));
+});
+ontologyRouter.get('/concepts/:id', async (req, res) => {
+  res.json(await conceptDetail(slug(req.params.id)));
+});
+ontologyRouter.put('/concepts/:id', async (req, res) => {
+  res.json(await updateConcept(slug(req.params.id), req.body ?? {}, req.user!));
+});
+ontologyRouter.delete('/concepts/:id', async (req, res) => {
+  const id = slug(req.params.id);
+  const linkedFrom = await backlinks('concept', id);
+  res.json({ ...(await deleteConcept(id)), linkedFrom });
+});
+
+ontologyRouter.post('/relations', async (req, res) => {
+  res.status(201).json(await createRelation(req.body ?? {}, req.user!));
+});
+ontologyRouter.get('/relations/:id', async (req, res) => {
+  res.json(await relationDetail(slug(req.params.id)));
+});
+ontologyRouter.put('/relations/:id', async (req, res) => {
+  res.json(await updateRelation(slug(req.params.id), req.body ?? {}, req.user!));
+});
+ontologyRouter.delete('/relations/:id', async (req, res) => {
+  const id = slug(req.params.id);
+  const linkedFrom = await backlinks('relation', id);
+  await deleteRelation(id);
+  res.json({ linkedFrom });
 });
 
 // What changed since the last calculation, with a cost estimate for the
@@ -53,7 +110,7 @@ ontologyRouter.post('/recommendations/:id/reject', async (req, res) => {
 });
 
 export const ontologyErrors: ErrorRequestHandler = (err, _req, res, next) => {
-  if (err instanceof RunError || err instanceof ApplyError) {
+  if (err instanceof RunError || err instanceof ApplyError || err instanceof EditError) {
     res.status(err.status).json({ error: err.message });
     return;
   }

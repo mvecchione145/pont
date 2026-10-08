@@ -317,6 +317,15 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
         </nav>
         <div className="page-bar-right">
           <span className={`save-status ${saveState}`}>{status}</span>
+          <button
+            className="link-ontology"
+            title="Link the selected text to an ontology concept (⌘⇧K, or type [[)"
+            // Keep the editor's text selection when clicking.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editorRef.current?.openLinkPicker()}
+          >
+            ◇ Link
+          </button>
           <div className="menu-anchor">
             <button
               className="icon-button"

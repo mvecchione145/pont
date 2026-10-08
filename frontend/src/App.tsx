@@ -12,6 +12,7 @@ import { UploadDialog } from './components/UploadDialog';
 import { OntologyPage } from './components/OntologyPage';
 import { ProposalsPage } from './components/ProposalsPage';
 import { HistoryPage } from './components/HistoryPage';
+import { ConceptPage, RelationPage } from './components/ConceptPage';
 
 export default function App() {
   const route = useRoute();
@@ -117,6 +118,16 @@ export default function App() {
         {route.view === 'trivia' && (
           <div className="page wide">
             <Trivia user={user} />
+          </div>
+        )}
+        {route.view === 'concept' && (
+          <div className="page">
+            <ConceptPage key={route.id} id={route.id} />
+          </div>
+        )}
+        {route.view === 'relation' && (
+          <div className="page">
+            <RelationPage key={route.id} id={route.id} />
           </div>
         )}
         {route.view === 'history' && (
