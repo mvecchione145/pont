@@ -1950,3 +1950,31 @@ select {
 .concept-link:hover {
   text-decoration: underline;
 }
+
+.review-head,
+.rec-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rec-group-head h3 {
+  margin-bottom: 0.5rem;
+}
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bulk-actions.restore-confirm {
+  flex-basis: 100%;
+}
+
+.bulk-summary {
+  margin: 0 0 0.75rem;
+}

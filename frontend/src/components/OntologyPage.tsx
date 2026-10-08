@@ -192,6 +192,56 @@ function RecommendationCard({
   );
 }
 
+// "Approve all" / "Reject all" for a set of recommendations, with an inline
+// confirmation that says what is about to happen.
+function BulkActions({
+  items,
+  scope,
+  onDone,
+}: {
+  items: OntologyRecommendation[];
+  scope: string;
+  onDone: (action: 'approve' | 'reject', ids: string[]) => Promise<void>;
+}) {
+  const [confirming, setConfirming] = useState<'approve' | 'reject' | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (items.length < 2) return null;
+  const deletions = items.filter((r) => r.action.startsWith('delete')).length;
+
+  if (!confirming) {
+    return (
+      <div className="bulk-actions">
+        <button onClick={() => setConfirming('approve')}>Approve {scope}</button>
+        <button onClick={() => setConfirming('reject')}>Reject {scope}</button>
+      </div>
+    );
+  }
+  return (
+    <div className="bulk-actions restore-confirm">
+      <span>
+        {confirming === 'approve'
+          ? `Approve ${items.length} recommendations?${deletions ? ` ${deletions} of them ${deletions === 1 ? 'deletes' : 'delete'} something.` : ''} New concepts go first, so relationships that need them apply.`
+          : `Reject ${items.length} recommendations? Nothing in the ontology changes.`}
+      </span>
+      <button
+        className={confirming === 'approve' ? 'primary' : 'danger'}
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await onDone(confirming, items.map((r) => r.id));
+          setBusy(false);
+          setConfirming(null);
+        }}
+      >
+        {busy ? 'Working…' : confirming === 'approve' ? `Approve ${items.length}` : `Reject ${items.length}`}
+      </button>
+      <button onClick={() => setConfirming(null)} disabled={busy}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 // --- Concept browser --------------------------------------------------------
 
 function ConceptList({ ontology }: { ontology: Ontology }) {
@@ -323,6 +373,7 @@ export function OntologyPage() {
   const [starting, setStarting] = useState(false);
   const [notices, setNotices] = useState<Record<string, { ok: boolean; message: string }>>({});
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
 
   const active = runs.find((r) => r.status === 'running');
 
@@ -385,6 +436,35 @@ export function OntologyPage() {
         setRecs((current) => current.filter((r) => r.id !== id));
         api.ontology().then(setOntology, () => undefined);
       }, 900);
+    }
+  }
+
+  async function decideAll(action: 'approve' | 'reject', ids: string[]) {
+    setError(null);
+    try {
+      const results = await api.decideRecommendations(action, ids);
+      const done = results.filter((r) => r.status === 'approved' || r.status === 'rejected');
+      const notDone = results.filter((r) => r.status === 'failed' || r.status === 'pending');
+      // Leave the ones that didn't apply on screen with their reason.
+      setNotices((n) => ({
+        ...n,
+        ...Object.fromEntries(notDone.map((r) => [r.id, { ok: false, message: r.message }])),
+      }));
+      const failedIds = new Set(results.filter((r) => r.status === 'failed').map((r) => r.id));
+      const doneIds = new Set(done.map((r) => r.id));
+      setRecs((current) => current.filter((r) => !doneIds.has(r.id)));
+      setSummary(
+        `${action === 'approve' ? 'Approved' : 'Rejected'} ${done.length} of ${results.length}.` +
+          (notDone.length ? ` ${notDone.length} didn't apply; the reasons are shown below.` : ''),
+      );
+      // Failed ones are no longer pending; drop them after the reason has been seen.
+      if (failedIds.size) {
+        window.setTimeout(() => setRecs((current) => current.filter((r) => !failedIds.has(r.id))), 6000);
+      }
+      api.ontology().then(setOntology, () => undefined);
+    } catch (err) {
+      setError((err as Error).message);
+      void refresh();
     }
   }
 
@@ -457,7 +537,16 @@ export function OntologyPage() {
       )}
 
       <section>
-        <h2 className="section-heading">Review ({recs.length})</h2>
+        <div className="review-head">
+          <h2 className="section-heading">Review ({recs.length})</h2>
+          {!active && <BulkActions items={recs} scope="all" onDone={decideAll} />}
+        </div>
+        {summary && (
+          <div className="banner bulk-summary">
+            <span>{summary}</span>
+            <button onClick={() => setSummary(null)}>Dismiss</button>
+          </div>
+        )}
         {recs.length === 0 ? (
           <p className="muted">No recommendations waiting for review.</p>
         ) : (
@@ -465,7 +554,10 @@ export function OntologyPage() {
             .filter(([, , items]) => items.length)
             .map(([key, label, items]) => (
               <div key={key} className="rec-group">
-                <h3>{label}</h3>
+                <div className="rec-group-head">
+                  <h3>{label}</h3>
+                  {!active && items.length < recs.length && <BulkActions items={items} scope="these" onDone={decideAll} />}
+                </div>
                 <ul>
                   {items.map((rec) => (
                     <Fragment key={rec.id}>

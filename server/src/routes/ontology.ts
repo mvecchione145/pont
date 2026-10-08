@@ -1,5 +1,5 @@
 import { Router, type ErrorRequestHandler } from 'express';
-import { ApplyError, approve, reject } from '../ontology/apply.js';
+import { ApplyError, approve, decideMany, reject } from '../ontology/apply.js';
 import { listRecommendations } from '../ontology/recommendations.js';
 import { cancelRun, getRun, listRuns, previewChanges, RunError, startRun } from '../ontology/runs.js';
 import { OntologyConflictError, readOntology } from '../ontology/store.js';
@@ -98,6 +98,17 @@ ontologyRouter.post('/runs/:id/cancel', async (req, res) => {
 
 ontologyRouter.get('/recommendations', async (req, res) => {
   res.json(await listRecommendations(req.query.status === 'decided' ? 'decided' : 'pending'));
+});
+
+// Body: { action: "approve" | "reject", ids: [...] }. Only the listed ids are
+// decided, so a run finishing meanwhile can't add unseen ones to the batch.
+ontologyRouter.post('/recommendations/bulk', async (req, res) => {
+  const { action, ids } = (req.body ?? {}) as { action?: unknown; ids?: unknown };
+  if ((action !== 'approve' && action !== 'reject') || !Array.isArray(ids) || !ids.every((i) => typeof i === 'string')) {
+    res.status(400).json({ error: 'Expected { action: "approve" | "reject", ids: string[] }.' });
+    return;
+  }
+  res.json(await decideMany(action, ids.map(id), req.user!));
 });
 
 ontologyRouter.post('/recommendations/:id/approve', async (req, res) => {

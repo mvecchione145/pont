@@ -346,6 +346,11 @@ export const api = {
       method: 'POST',
     }),
   rejectRecommendation: (id: string) => request<void>(`/api/ontology/recommendations/${id}/reject`, { method: 'POST' }),
+  decideRecommendations: (action: 'approve' | 'reject', ids: string[]) =>
+    request<{ id: string; status: 'approved' | 'rejected' | 'failed' | 'pending'; message: string }[]>(
+      '/api/ontology/recommendations/bulk',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ids }) },
+    ),
   proposals: (status: 'pending' | 'decided' = 'pending') => request<Proposal[]>(`/api/proposals?status=${status}`),
   proposalCounts: () => request<Record<string, number>>('/api/proposals/counts'),
   proposal: (id: string) => request<ProposalDetail>(`/api/proposals/${id}`),

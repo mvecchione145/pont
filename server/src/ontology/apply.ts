@@ -167,3 +167,64 @@ export async function reject(id: string, user: User): Promise<void> {
   await pending(id);
   await decide(id, 'rejected', user);
 }
+
+// Approving or rejecting many at once ("Approve all" after a calculation).
+// Approvals run in dependency order: new concepts before the aliases, updates,
+// and relationships that refer to them, and deletions last, so one approval
+// doesn't fail just because another in the same batch hadn't run yet. A
+// relationship still waiting on a concept gets one more try at the end.
+
+const ORDER: Record<StoredRecommendation['action'], number> = {
+  create_concept: 0,
+  add_alias: 1,
+  update_concept: 1,
+  create_relation: 2,
+  delete_relation: 3,
+  delete_concept: 4,
+};
+
+export interface BulkResult {
+  id: string;
+  status: 'approved' | 'rejected' | 'failed' | 'pending';
+  message: string;
+}
+
+export const MAX_BULK = 500;
+
+export async function decideMany(action: 'approve' | 'reject', ids: string[], user: User): Promise<BulkResult[]> {
+  const unique = [...new Set(ids)];
+  if (unique.length > MAX_BULK) throw new ApplyError(`At most ${MAX_BULK} at a time.`, 400);
+  const results = new Map<string, BulkResult>();
+  const recs: StoredRecommendation[] = [];
+  for (const id of unique) {
+    const rec = await getRecommendation(id);
+    if (!rec) results.set(id, { id, status: 'failed', message: 'No such recommendation.' });
+    else if (rec.status !== 'pending') results.set(id, { id, status: 'failed', message: `Already ${rec.status}.` });
+    else recs.push(rec);
+  }
+
+  if (action === 'reject') {
+    for (const rec of recs) {
+      await decide(rec.id, 'rejected', user);
+      results.set(rec.id, { id: rec.id, status: 'rejected', message: 'Rejected.' });
+    }
+  } else {
+    const tryApprove = async (rec: StoredRecommendation): Promise<BulkResult> => {
+      try {
+        return { id: rec.id, ...(await approve(rec.id, user)) };
+      } catch (err) {
+        if (err instanceof ApplyError && err.keepPending) return { id: rec.id, status: 'pending', message: err.message };
+        throw err;
+      }
+    };
+    const sorted = [...recs].sort((a, b) => ORDER[a.action] - ORDER[b.action]);
+    const waiting: StoredRecommendation[] = [];
+    for (const rec of sorted) {
+      const r = await tryApprove(rec);
+      results.set(rec.id, r);
+      if (r.status === 'pending') waiting.push(rec);
+    }
+    for (const rec of waiting) results.set(rec.id, await tryApprove(rec));
+  }
+  return unique.map((id) => results.get(id)!);
+}
