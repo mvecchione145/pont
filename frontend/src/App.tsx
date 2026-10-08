@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type EntrySummary, type User } from './api';
-import { navigate, useRoute } from './route';
+import { folderOf, navigate, useRoute } from './route';
 import { Sidebar } from './components/Sidebar';
 import { Page } from './components/Page';
 import { Home } from './components/Home';
@@ -8,6 +8,7 @@ import { Tokens } from './components/Tokens';
 import { SearchDialog } from './components/SearchDialog';
 import { Trivia } from './components/Trivia';
 import { Settings } from './components/Settings';
+import { UploadDialog } from './components/UploadDialog';
 
 export default function App() {
   const route = useRoute();
@@ -16,6 +17,7 @@ export default function App() {
   const [justCreated, setJustCreated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   // Cmd+K / Ctrl+K opens search from anywhere, like Notion.
   useEffect(() => {
@@ -88,6 +90,7 @@ export default function App() {
         route={route}
         onNewPage={newPage}
         onSearch={() => setSearchOpen(true)}
+        onUpload={() => setUploadOpen(true)}
       />
       <main className="main">
         {error && (
@@ -124,6 +127,13 @@ export default function App() {
         )}
       </main>
       {searchOpen && <SearchDialog onClose={() => setSearchOpen(false)} />}
+      {uploadOpen && (
+        <UploadDialog
+          defaultFolder={route.view === 'page' ? folderOf(route.path) : ''}
+          onClose={() => setUploadOpen(false)}
+          onImported={refreshEntries}
+        />
+      )}
     </div>
   );
 }

@@ -94,11 +94,12 @@ interface Props {
   route: Route;
   onNewPage: (folder: string) => void;
   onSearch: () => void;
+  onUpload: () => void;
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
-export function Sidebar({ user, entries, route, onNewPage, onSearch }: Props) {
+export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload }: Props) {
   const selected = route.view === 'page' ? route.path : undefined;
   return (
     <aside className="sidebar">
@@ -164,6 +165,10 @@ export function Sidebar({ user, entries, route, onNewPage, onSearch }: Props) {
         <button className="row row-main" onClick={() => onNewPage('')}>
           <span className="page-icon">+</span>
           <span className="row-label">New page</span>
+        </button>
+        <button className="row row-main" onClick={onUpload}>
+          <span className="page-icon">⇪</span>
+          <span className="row-label">Upload</span>
         </button>
         <button className="row row-main" onClick={() => logout()}>
           <span className="page-icon">⇥</span>

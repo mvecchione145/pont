@@ -1099,3 +1099,158 @@ button.row-main.row:hover {
     opacity: 0;
   }
 }
+
+/* Upload */
+
+.upload-dialog {
+  width: min(760px, 100%);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem 1.25rem 1.1rem;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.upload-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.upload-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 1.1rem;
+  text-align: center;
+  font-size: 14px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.drop-zone p {
+  margin: 0 0 0.35rem;
+}
+
+.drop-zone .actions {
+  justify-content: center;
+  margin-top: 0.6rem;
+}
+
+.drop-zone.dragging {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.upload-folder {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.upload-folder input {
+  flex: 1;
+  font-weight: 400;
+}
+
+.upload-plan {
+  overflow: auto;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.upload-plan table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+.upload-plan th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  text-align: left;
+  font-weight: 500;
+  color: var(--fg-soft);
+}
+
+.upload-plan th,
+.upload-plan td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.upload-plan th:nth-child(3),
+.upload-plan td:nth-child(3) {
+  width: 11rem;
+}
+
+.upload-plan .file-name,
+.upload-plan .page-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-plan .page-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.upload-plan tr.skip td {
+  color: var(--fg-faint);
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--surface);
+  color: var(--fg-soft);
+}
+
+.pill.new {
+  background: color-mix(in srgb, var(--up) 15%, transparent);
+  color: var(--up);
+}
+
+.replace {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.upload-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-foot .muted {
+  margin-right: auto;
+  font-size: 13px;
+}
+
+.upload-results ul {
+  max-height: 45vh;
+  overflow: auto;
+  padding-left: 1.1rem;
+  font-size: 14px;
+}
+
+.upload-results li {
+  margin: 0.25rem 0;
+}

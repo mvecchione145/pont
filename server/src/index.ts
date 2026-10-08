@@ -10,6 +10,7 @@ import { migrate } from './migrate.js';
 import { searchRouter } from './routes/search.js';
 import { settingsRouter } from './routes/settings.js';
 import { triviaRouter, triviaErrors } from './routes/trivia.js';
+import { uploadsRouter, uploadErrors } from './routes/uploads.js';
 import { startIndexer } from './search/index.js';
 
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/tokens', tokensRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/trivia', triviaRouter, triviaErrors);
+app.use('/api/uploads', uploadsRouter, uploadErrors);
 
 await redis.connect();
 await migrate();

@@ -75,6 +75,19 @@ Tuning (environment variables on `server`):
 | `SEARCH_ALPHA_SHORT` | `0.3` | The same weight for 1–2 word queries, which lean on exact terms |
 | `SEARCH_MIN_SIMILARITY` | `0.62` | Minimum similarity for a result that matches no keywords |
 
+### Uploading files
+
+Click **Upload** in the sidebar, then drop files or whole folders (or use **Choose files** / **Choose folder**). Folders keep their structure: `Handbook/Eng/On-call.md` becomes the page `Handbook/Eng/On-call` inside the folder you pick.
+
+| File type | How it's imported |
+|---|---|
+| `.md`, `.markdown`, `.txt` | As-is |
+| `.docx` (Word) | Converted to Markdown: headings, lists, links, bold/italic, and tables (images are dropped) |
+| `.html`, `.htm` | Converted to Markdown the same way (scripts, styles, and embedded images are dropped) |
+| `.pdf` | Text only: layout, tables, and images are not kept, and scanned PDFs (images of text) have no text to import |
+
+Before anything is written, a preview lists every file with its destination page. Files that would replace an existing page are **skipped unless you tick "Replace existing"**; replaced pages keep their previous versions in history. Hidden files (such as `.DS_Store` and `.git/`) and unsupported types are skipped. Limits: 10 MB per file, 50 MB and 500 files per upload. Imported pages are searchable and available to agents a few seconds later.
+
 ### Trivia
 
 **Trivia** (in the sidebar) asks multiple-choice questions written on the fly from a random section of your documentation: +1 for a correct answer, −1 for a wrong one. The leaderboard shows this week (from Monday) and all time. After each question, **Fact check this section** opens the page the question came from, scrolled to that section, so anyone who spots something out of date can fix it right away.

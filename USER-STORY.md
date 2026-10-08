@@ -155,6 +155,11 @@ pont reuses design ideas from [Onyx](https://github.com/onyx-dot-app/onyx) (MIT-
 **3.3** As a **Domain Expert**, I want to record decisions together with their reasoning, so that both humans and agents understand *why*, not just *what*.
 - [ ] A decision entry can capture the decision, its reasoning, and who made it
 
+**3.4** As a **Domain Expert**, I want to upload existing documents, single files or whole folders, so that I don't have to retype knowledge that already exists.
+- [x] Markdown and text import as-is; Word, HTML, and PDF are converted to Markdown (PDF as text only)
+- [x] Folder uploads keep their structure as pont folders
+- [x] A preview shows each file's destination page before anything is written; existing pages are only replaced when ticked, and keep their history
+
 ## Epic 4 — Agents use context through MCP
 
 **4.1** As an **Agent**, I want to retrieve relevant organizational context through MCP tools, so that my output follows how this organization actually works.

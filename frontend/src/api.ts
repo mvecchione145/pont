@@ -92,6 +92,23 @@ export interface LeaderboardRow {
   correct: number;
 }
 
+export type PreviewStatus = 'new' | 'exists' | 'duplicate' | 'unsupported' | 'hidden' | 'invalid' | 'too-large';
+
+export interface PreviewItem {
+  name: string;
+  path?: string;
+  status: PreviewStatus;
+  message?: string;
+}
+
+export interface ImportItem {
+  name: string;
+  path?: string;
+  status: 'created' | 'replaced' | 'skipped' | 'failed';
+  message?: string;
+  notes?: string[];
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -156,6 +173,20 @@ export const api = {
     }),
   skip: (id: string) => request<TriviaResult>(`/api/trivia/questions/${id}/skip`, { method: 'POST' }),
   leaderboard: (period: 'all' | 'week') => request<LeaderboardRow[]>(`/api/trivia/leaderboard?period=${period}`),
+  previewUpload: (folder: string, files: { name: string; size: number }[]) =>
+    request<PreviewItem[]>('/api/uploads/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder, files }),
+    }),
+  upload: (folder: string, files: { file: File; name: string }[], replace: string[]) => {
+    const form = new FormData();
+    form.append('folder', folder);
+    form.append('paths', JSON.stringify(files.map((f) => f.name)));
+    form.append('replace', JSON.stringify(replace));
+    for (const f of files) form.append('files', f.file);
+    return request<ImportItem[]>('/api/uploads', { method: 'POST', body: form });
+  },
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>
     request<{ token: string; info: TokenInfo }>('/api/tokens', {
