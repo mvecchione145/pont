@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type Proposal, type ProposalDetail } from '../api';
 import { href, navigate } from '../route';
+import { Diff } from './Diff';
 
 function timeAgo(iso: string): string {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -8,27 +9,6 @@ function timeAgo(iso: string): string {
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.round(minutes / 60);
   return hours < 24 ? `${hours}h ago` : new Date(iso).toLocaleDateString();
-}
-
-// Renders a unified diff: removed lines red, added lines green, with the
-// file headers dropped and hunks separated.
-function Diff({ patch }: { patch: string }) {
-  const lines = patch
-    .split('\n')
-    .filter((l) => !/^(===|--- |\+\+\+ |Index: |\\ No newline)/.test(l));
-  return (
-    <pre className="diff" aria-label="Proposed changes">
-      {lines.map((line, i) => {
-        const kind = line.startsWith('@@') ? 'hunk' : line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : 'ctx';
-        return (
-          <span key={i} className={`diff-line ${kind}`}>
-            {kind === 'hunk' ? '⋯' : line || ' '}
-            {'\n'}
-          </span>
-        );
-      })}
-    </pre>
-  );
 }
 
 function Review({ id, onDone }: { id: string; onDone: (message: string) => void }) {

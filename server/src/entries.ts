@@ -206,7 +206,8 @@ export async function moveEntry(
   if (source.versionId !== baseVersionId) {
     throw new EntryError(409, `"${from}" was changed by someone else since you opened it`);
   }
-  const moved = await saveEntry(to, source.content, null, user);
+  // The new path's history links back to where it came from.
+  const moved = await saveEntry(to, source.content, null, user, { 'moved-from': encodeURIComponent(from) });
   await deleteEntry(from);
   return moved;
 }

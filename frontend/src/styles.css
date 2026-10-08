@@ -1639,3 +1639,115 @@ button.row-main.row:hover {
 .proposals-banner {
   background: color-mix(in srgb, var(--accent) 10%, var(--bg));
 }
+
+/* Page history */
+
+.breadcrumbs-line {
+  margin: 0 0 0.5rem;
+  font-size: 14px;
+}
+
+.history-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .history-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.version-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 75vh;
+  overflow: auto;
+}
+
+.version-list button {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.version-list button.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.version-list button:disabled {
+  opacity: 0.7;
+}
+
+.version-when {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.pill.deleted {
+  background: color-mix(in srgb, var(--down) 14%, transparent);
+  color: var(--down);
+}
+
+.version-detail header h2 {
+  margin: 0 0 0.25rem;
+  font-size: 18px;
+}
+
+.version-detail header p {
+  margin: 0 0 0.9rem;
+  font-size: 14px;
+}
+
+.version-detail .tabs {
+  margin-bottom: 0.75rem;
+}
+
+.version-content {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.restore-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  font-size: 14px;
+}
+
+.restore-confirm span {
+  flex: 1;
+  min-width: 14rem;
+}

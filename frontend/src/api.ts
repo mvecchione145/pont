@@ -205,6 +205,25 @@ export interface ProposalDetail extends Proposal {
   problem: string | null;
 }
 
+export interface PageVersion {
+  versionId: string;
+  deleted: boolean;
+  current: boolean;
+  modifiedAt: string;
+  size: number;
+  author?: Author;
+  proposalId?: string;
+  proposedBy?: string;
+  restoredFrom?: string;
+  movedFrom?: string;
+}
+
+export interface PageVersionDetail extends PageVersion {
+  content: string;
+  previousVersionId: string | null;
+  patch: string;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -223,8 +242,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
-const entryUrl = (path: string) =>
-  `/api/entries/${path.split('/').map(encodeURIComponent).join('/')}`;
+const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
+const entryUrl = (path: string) => `/api/entries/${encodePath(path)}`;
 
 export const api = {
   me: () => request<User>('/api/me'),
@@ -309,6 +328,15 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ note }),
+    }),
+  history: (path: string) => request<PageVersion[]>(`/api/history/${encodePath(path)}`),
+  version: (path: string, versionId: string) =>
+    request<PageVersionDetail>(`/api/history/${encodePath(path)}?version=${encodeURIComponent(versionId)}`),
+  restoreVersion: (path: string, versionId: string) =>
+    request<Entry>(`/api/history/${encodePath(path)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restore: versionId }),
     }),
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>

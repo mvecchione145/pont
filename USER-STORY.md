@@ -201,7 +201,8 @@ Each proposal is a unified diff (`git diff` format) stored next to the knowledge
 - [x] Once applied, changes are visible to agents and humans
 
 **5.3** As a **Domain Expert**, I want to see the history of changes and who approved each one, so that I can trust and audit the knowledge base.
-- [ ] Each entry shows its version history from MinIO bucket versioning, including applied agent proposals (stored, not yet shown in the UI)
+- [x] Each entry shows its version history from MinIO bucket versioning, including applied agent proposals, restores, moves, and deletions
+- [x] Any earlier version can be viewed (changes and full content) and restored as the newest version, including for deleted pages
 - [x] Every version records who wrote it, stored as object metadata; versions from proposals also record the proposal and who proposed it
 
 ## Epic 6 — Low maintenance

@@ -93,6 +93,12 @@ Click **Upload** in the sidebar, then drop files or whole folders (or use **Choo
 
 Before anything is written, a preview lists every file with its destination page. Files that would replace an existing page are **skipped unless you tick "Replace existing"**; replaced pages keep their previous versions in history. Hidden files (such as `.DS_Store` and `.git/`) and unsupported types are skipped. Limits: 10 MB per file, 50 MB and 500 files per upload. Imported pages are searchable and available to agents a few seconds later.
 
+### Page history
+
+Every save is kept: MinIO bucket versioning stores each version, and deletes only add a delete marker. Open a page's **⋯ menu → Page history** to see every version with its author and where it came from (an agent proposal, a restore, or a move), the changes each version made, and the full page as it was. **Restore this version** saves that content as the newest version, so nothing is overwritten.
+
+History also works for pages that have since been deleted, at `#/history/<page path>`; restoring a version brings the page back. A page moved to a new path links back to its history at the old path.
+
 ### Agent proposals
 
 Agents connected through MCP can suggest fixes when they find something missing, outdated, or contradictory, but they can never change anything themselves:

@@ -337,6 +337,15 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
                     role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
+                      navigate({ view: 'history', path: pathRef.current });
+                    }}
+                  >
+                    Page history
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
                       setMoving(true);
                     }}
                   >

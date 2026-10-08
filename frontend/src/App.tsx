@@ -11,6 +11,7 @@ import { Settings } from './components/Settings';
 import { UploadDialog } from './components/UploadDialog';
 import { OntologyPage } from './components/OntologyPage';
 import { ProposalsPage } from './components/ProposalsPage';
+import { HistoryPage } from './components/HistoryPage';
 
 export default function App() {
   const route = useRoute();
@@ -116,6 +117,11 @@ export default function App() {
         {route.view === 'trivia' && (
           <div className="page wide">
             <Trivia user={user} />
+          </div>
+        )}
+        {route.view === 'history' && (
+          <div className="page wide">
+            <HistoryPage key={route.path} path={route.path} onChanged={refreshEntries} />
           </div>
         )}
         {route.view === 'proposals' && (
