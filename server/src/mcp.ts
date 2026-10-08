@@ -6,27 +6,38 @@ import { EntryError, getEntry, listEntries, parsePath } from './entries.js';
 import { authenticateToken } from './tokens.js';
 import { search, SearchUnavailableError } from './search/search.js';
 import type { User } from './auth.js';
+import { listProposals, proposeEdit, proposeNewPage, ProposalError } from './proposals/store.js';
+import { verifyEvidence } from './ontology/evidence.js';
+import { saveRecommendation, type Recommendation } from './ontology/recommendations.js';
+import { CONCEPT_TYPES, findConcept, readOntology, RELATION_TYPES } from './ontology/store.js';
 
 const INSTRUCTIONS = `pont holds this organization's knowledge, written by the people who know it:
 business definitions and metrics, decisions and their reasoning, and processes.
 Check pont before assuming how this organization works. Start with search,
 which finds relevant passages by meaning and by exact terms; then read_entry to
 read a whole entry. list_entries shows everything that exists, optionally
-within a folder.`;
+within a folder.
+
+If you find something missing, outdated, or contradictory, you can propose a
+fix: propose_edit or propose_new_page for pages, and propose_concept,
+propose_alias, or propose_relation for the ontology. Proposals never change
+anything directly; a person reviews each one. Explain your reason and keep
+edits small and focused. list_my_proposals shows what happened to them.`;
 
 function text(value: string, isError = false) {
   return { content: [{ type: 'text' as const, text: value }], isError };
 }
 
 function errorText(err: unknown) {
-  if (err instanceof EntryError) return text(err.message, true);
+  if (err instanceof EntryError || err instanceof ProposalError) return text(err.message, true);
   throw err;
 }
 
-// One MCP server per request (stateless mode), bound to the token's user.
-// The user isn't used by the read-only tools yet; it is here for attribution
-// once agents can propose changes.
-function buildServer(_user: User): McpServer {
+const REVIEW_NOTE = 'It is now waiting for a person to review it; nothing has changed yet.';
+
+// One MCP server per request (stateless mode), bound to the token's user:
+// everything an agent proposes is attributed to that user.
+function buildServer(user: User): McpServer {
   const server = new McpServer(
     { name: 'pont', version: '0.1.0' },
     { instructions: INSTRUCTIONS },
@@ -124,7 +135,176 @@ function buildServer(_user: User): McpServer {
     },
   );
 
+  registerProposalTools(server, user);
   return server;
+}
+
+function registerProposalTools(server: McpServer, user: User) {
+  const edit = z.object({
+    find: z.string().describe('Exact text currently on the page (must match exactly once, including whitespace)'),
+    replace: z.string().describe('What to put there instead (empty to delete it)'),
+  });
+
+  server.registerTool(
+    'propose_edit',
+    {
+      title: 'Propose an edit to a page',
+      description:
+        'Proposes a change to an existing documentation page as one or more find-and-replace edits. ' +
+        'Read the page with read_entry first and copy the "find" text exactly. A person reviews the ' +
+        'proposal before anything changes.',
+      inputSchema: {
+        path: z.string().describe('Page path, for example "processes/onboarding"'),
+        edits: z.array(edit).min(1).max(20),
+        reason: z.string().describe('Why this change is needed, with any source you relied on'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    async ({ path, edits, reason }) => {
+      try {
+        const p = await proposeEdit(path, edits, reason, user);
+        return text(`Proposed an edit to "${p.path}" (proposal ${p.id}). ${REVIEW_NOTE}`);
+      } catch (err) {
+        return errorText(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'propose_new_page',
+    {
+      title: 'Propose a new page',
+      description:
+        'Proposes a new documentation page in Markdown. Search first to make sure it does not already exist. ' +
+        'A person reviews the proposal before the page is created.',
+      inputSchema: {
+        path: z.string().describe('Path for the new page, for example "processes/incident-response"'),
+        content: z.string().describe('The full Markdown of the page, starting with a "# Title" heading'),
+        reason: z.string().describe('Why this page is needed'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    async ({ path, content, reason }) => {
+      try {
+        const p = await proposeNewPage(path, content, reason, user);
+        return text(`Proposed a new page at "${p.path}" (proposal ${p.id}). ${REVIEW_NOTE}`);
+      } catch (err) {
+        return errorText(err);
+      }
+    },
+  );
+
+  // Ontology proposals join the Ontology page's review queue.
+  const evidence = z
+    .array(z.object({ path: z.string(), quote: z.string().describe('An exact passage from that page') }))
+    .min(1)
+    .describe('Exact quotes from documentation pages that support this');
+  const rationale = z.string().describe('Why, in one or two sentences');
+
+  async function recommend(recommendation: Recommendation, why: string, quotes: { path: string; quote: string }[]) {
+    const problem = await verifyEvidence(quotes);
+    if (problem) return text(`Not proposed: ${problem}`, true);
+    const outcome = await saveRecommendation({
+      runId: null,
+      proposedBy: user.name ?? user.username,
+      workflow: 'agent',
+      recommendation,
+      rationale: why,
+      evidence: quotes,
+      confidence: 1,
+    });
+    return text(
+      {
+        saved: `Proposed. ${REVIEW_NOTE}`,
+        duplicate: 'The same change (or a concept with this name) is already waiting for review.',
+        'previously-rejected': 'A person already rejected this exact change.',
+      }[outcome],
+      outcome !== 'saved',
+    );
+  }
+
+  server.registerTool(
+    'propose_concept',
+    {
+      title: 'Propose an ontology concept',
+      description:
+        'Proposes a new concept for the ontology (a metric, process, decision, policy, system, team, or term ' +
+        'that the documentation defines). Quote the passage that defines it.',
+      inputSchema: {
+        name: z.string(),
+        type: z.enum(CONCEPT_TYPES),
+        definition: z.string().describe('One or two sentences, faithful to the documentation'),
+        aliases: z.array(z.string()).default([]),
+        rationale,
+        evidence,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ name, type, definition, aliases, rationale: why, evidence: quotes }) => {
+      const existing = findConcept((await readOntology()).ontology, name);
+      if (existing) return text(`"${name}" already exists as concept "${existing.id}". Propose an alias instead.`, true);
+      return recommend({ action: 'create_concept', payload: { name, type, definition, aliases } }, why, quotes);
+    },
+  );
+
+  server.registerTool(
+    'propose_alias',
+    {
+      title: 'Propose an alias for a concept',
+      description: 'Proposes another name (synonym, abbreviation) for an existing ontology concept.',
+      inputSchema: { concept: z.string().describe('Concept id or name'), alias: z.string(), rationale, evidence },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ concept, alias, rationale: why, evidence: quotes }) => {
+      const c = findConcept((await readOntology()).ontology, concept);
+      if (!c) return text(`No concept "${concept}".`, true);
+      return recommend({ action: 'add_alias', payload: { conceptId: c.id, alias } }, why, quotes);
+    },
+  );
+
+  server.registerTool(
+    'propose_relation',
+    {
+      title: 'Propose an ontology relationship',
+      description: 'Proposes a typed relationship from one concept to another, as the documentation states it.',
+      inputSchema: {
+        from: z.string().describe('Concept id or name'),
+        type: z.enum(RELATION_TYPES),
+        to: z.string().describe('Concept id or name'),
+        rationale,
+        evidence,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ from, type, to, rationale: why, evidence: quotes }) => {
+      if (from.trim().toLowerCase() === to.trim().toLowerCase()) return text('A concept cannot relate to itself.', true);
+      return recommend({ action: 'create_relation', payload: { from, type, to } }, why, quotes);
+    },
+  );
+
+  server.registerTool(
+    'list_my_proposals',
+    {
+      title: 'List my page proposals',
+      description: 'Lists page proposals made with your token: pending ones, and recently reviewed ones with the outcome.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () => {
+      const [pending, decided] = await Promise.all([
+        listProposals('pending', user.id),
+        listProposals('decided', user.id),
+      ]);
+      const line = (p: Awaited<ReturnType<typeof listProposals>>[number]) =>
+        `- ${p.id} ${p.kind === 'new' ? 'new page' : 'edit'} "${p.path}": ${p.status}` +
+        (p.decidedBy ? ` by ${p.decidedBy}` : '') +
+        (p.decisionNote ? ` (${p.decisionNote})` : '');
+      if (!pending.length && !decided.length) return text('You have no page proposals.');
+      return text(
+        [`Pending (${pending.length}):`, ...pending.map(line), `Reviewed (${decided.length}):`, ...decided.slice(0, 20).map(line)].join('\n'),
+      );
+    },
+  );
 }
 
 function unauthorized(res: Response, message: string) {

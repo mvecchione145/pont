@@ -171,7 +171,8 @@ export interface OntologyRun {
 export interface OntologyRecommendation {
   id: string;
   runId: string;
-  workflow: 'maintain' | 'create';
+  workflow: 'maintain' | 'create' | 'agent';
+  proposedBy: string | null;
   action: 'create_concept' | 'update_concept' | 'delete_concept' | 'add_alias' | 'create_relation' | 'delete_relation';
   payload: Record<string, unknown>;
   rationale: string;
@@ -179,6 +180,29 @@ export interface OntologyRecommendation {
   confidence: number;
   status: string;
   error: string | null;
+}
+
+export interface Proposal {
+  id: string;
+  kind: 'edit' | 'new';
+  path: string;
+  baseVersionId: string | null;
+  reason: string;
+  proposedBy: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+}
+
+export interface ProposalDetail extends Proposal {
+  patch: string;
+  stale: boolean;
+  proposedContent: string | null;
+  currentContent: string | null;
+  currentVersionId: string | null;
+  problem: string | null;
 }
 
 export class ApiError extends Error {
@@ -271,6 +295,21 @@ export const api = {
       method: 'POST',
     }),
   rejectRecommendation: (id: string) => request<void>(`/api/ontology/recommendations/${id}/reject`, { method: 'POST' }),
+  proposals: (status: 'pending' | 'decided' = 'pending') => request<Proposal[]>(`/api/proposals?status=${status}`),
+  proposalCounts: () => request<Record<string, number>>('/api/proposals/counts'),
+  proposal: (id: string) => request<ProposalDetail>(`/api/proposals/${id}`),
+  approveProposal: (id: string, edited?: { content: string; baseVersionId: string | null }) =>
+    request<{ path: string; versionId: string | null }>(`/api/proposals/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(edited ?? {}),
+    }),
+  rejectProposal: (id: string, note: string) =>
+    request<void>(`/api/proposals/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    }),
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>
     request<{ token: string; info: TokenInfo }>('/api/tokens', {

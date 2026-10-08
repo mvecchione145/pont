@@ -10,11 +10,22 @@ import { Trivia } from './components/Trivia';
 import { Settings } from './components/Settings';
 import { UploadDialog } from './components/UploadDialog';
 import { OntologyPage } from './components/OntologyPage';
+import { ProposalsPage } from './components/ProposalsPage';
 
 export default function App() {
   const route = useRoute();
   const [user, setUser] = useState<User | null>(null);
   const [entries, setEntries] = useState<EntrySummary[]>([]);
+  // Pending agent proposals per page path (sidebar badge, page banners).
+  const [proposalCounts, setProposalCounts] = useState<Record<string, number>>({});
+  const refreshProposalCounts = useCallback(() => {
+    api.proposalCounts().then(setProposalCounts, () => undefined);
+  }, []);
+  useEffect(() => {
+    refreshProposalCounts();
+    const timer = window.setInterval(refreshProposalCounts, 60_000);
+    return () => window.clearInterval(timer);
+  }, [refreshProposalCounts]);
   const [justCreated, setJustCreated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -92,6 +103,7 @@ export default function App() {
         onNewPage={newPage}
         onSearch={() => setSearchOpen(true)}
         onUpload={() => setUploadOpen(true)}
+        pendingProposals={Object.values(proposalCounts).reduce((a, b) => a + b, 0)}
       />
       <main className="main">
         {error && (
@@ -104,6 +116,17 @@ export default function App() {
         {route.view === 'trivia' && (
           <div className="page wide">
             <Trivia user={user} />
+          </div>
+        )}
+        {route.view === 'proposals' && (
+          <div className="page wide">
+            <ProposalsPage
+              pathFilter={route.path}
+              onChanged={() => {
+                refreshProposalCounts();
+                refreshEntries();
+              }}
+            />
           </div>
         )}
         {route.view === 'ontology' && (
@@ -129,6 +152,7 @@ export default function App() {
             isNew={justCreated === route.path}
             onChanged={refreshEntries}
             onRenamed={renamed}
+            pendingProposals={proposalCounts[route.path] ?? 0}
           />
         )}
       </main>

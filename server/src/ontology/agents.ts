@@ -9,6 +9,7 @@ import { supportsEffort, supportsFallbacks } from '../llm/generate.js';
 import type { LlmSettings } from '../llm/settings.js';
 import { search } from '../search/search.js';
 import type { Changes } from './changes.js';
+import { verifyEvidence } from './evidence.js';
 import { saveRecommendation, type Recommendation, type Workflow } from './recommendations.js';
 import { CONCEPT_TYPES, findConcept, readOntology, RELATION_TYPES, type Ontology, type Source } from './store.js';
 
@@ -73,7 +74,6 @@ function buildModel(settings: LlmSettings) {
 }
 
 const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}\n… (truncated)` : text);
-const normalize = (text: string) => text.replace(/\s+/g, ' ').trim().toLowerCase();
 
 const conceptSummary = (o: Ontology) =>
   o.concepts.map((c) => ({ id: c.id, name: c.name, type: c.type, aliases: c.aliases }));
@@ -145,33 +145,13 @@ function readTools() {
 }
 
 function recommendTools(ctx: WorkflowContext, workflow: Workflow, counter: { saved: number }) {
-  // Checks that each quote really appears on its page: in its current
-  // content, or in the last analysed content of a modified or deleted page.
-  async function verifyEvidence(evidence: Source[]): Promise<string | null> {
-    for (const { path, quote } of evidence) {
-      if (quote.trim().length < 5) return `Evidence quote from "${path}" is too short.`;
-      const versions: string[] = [];
-      const previous = ctx.previousContent.get(path);
-      if (previous !== undefined) versions.push(previous);
-      try {
-        versions.push((await getEntry(path)).content);
-      } catch {
-        if (previous === undefined) return `Evidence page "${path}" does not exist.`;
-      }
-      if (!versions.some((content) => normalize(content).includes(normalize(quote)))) {
-        return `The quote "${clip(quote, 80)}" does not appear on "${path}". Copy the passage exactly.`;
-      }
-    }
-    return null;
-  }
-
   async function record(
     recommendation: Recommendation,
     rationale: string,
     evidence: Source[],
     confidence: number,
   ): Promise<string> {
-    const problem = await verifyEvidence(evidence);
+    const problem = await verifyEvidence(evidence, ctx.previousContent);
     if (problem) return `Not recorded: ${problem}`;
     const outcome = await saveRecommendation({ runId: ctx.runId, workflow, recommendation, rationale, evidence, confidence });
     if (outcome === 'saved') counter.saved++;

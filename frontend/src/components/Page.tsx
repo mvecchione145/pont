@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { api, ApiError, type Entry } from '../api';
-import { folderOf, nameOf, navigate } from '../route';
+import { folderOf, href, nameOf, navigate } from '../route';
 // The editor (with CodeMirror for code blocks) is large, so load it on demand.
 const Editor = lazy(() => import('./Editor').then((m) => ({ default: m.Editor })));
 type EditorHandle = import('./Editor').EditorHandle;
@@ -48,9 +48,11 @@ interface Props {
   // Called after a rename or move. The parent keeps this same Page mounted
   // while the URL changes to the new path.
   onRenamed: (from: string, to: string) => void;
+  // Agent proposals waiting for review for this page.
+  pendingProposals: number;
 }
 
-export function Page({ path, section, isNew, onChanged, onRenamed }: Props) {
+export function Page({ path, section, isNew, onChanged, onRenamed, pendingProposals }: Props) {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
@@ -356,6 +358,16 @@ export function Page({ path, section, isNew, onChanged, onRenamed }: Props) {
         </div>
       </header>
 
+      {pendingProposals > 0 && (
+        <div className="banner proposals-banner">
+          <span>
+            Agents proposed {pendingProposals === 1 ? 'a change' : `${pendingProposals} changes`} to this page.
+          </span>
+          <a className="button" href={href({ view: 'proposals', path })}>
+            Review
+          </a>
+        </div>
+      )}
       {factCheck && (
         <div className="banner fact-check">
           <span>

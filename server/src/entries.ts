@@ -136,6 +136,9 @@ export async function saveEntry(
   content: string,
   baseVersionId: string | null,
   user: User,
+  // Extra provenance stored with this version (ASCII values), e.g. the
+  // agent proposal it came from.
+  extraMetadata: Record<string, string> = {},
 ): Promise<Entry> {
   const current = await currentVersion(path);
   if (baseVersionId === null && current !== null) {
@@ -157,7 +160,7 @@ export async function saveEntry(
       Key: keyFor(path),
       Body: content,
       ContentType: 'text/markdown; charset=utf-8',
-      Metadata: { 'author-id': author.id, 'author-name': encodeURIComponent(author.name) },
+      Metadata: { ...extraMetadata, 'author-id': author.id, 'author-name': encodeURIComponent(author.name) },
     }),
   );
   entryEvents.emit('saved', path);

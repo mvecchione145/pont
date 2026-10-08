@@ -95,11 +95,12 @@ interface Props {
   onNewPage: (folder: string) => void;
   onSearch: () => void;
   onUpload: () => void;
+  pendingProposals: number;
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
-export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload }: Props) {
+export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload, pendingProposals }: Props) {
   const selected = route.view === 'page' ? route.path : undefined;
   return (
     <aside className="sidebar">
@@ -120,6 +121,19 @@ export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload }:
         <a className="row row-main" href={href({ view: 'home' })} aria-current={route.view === 'home' ? 'page' : undefined}>
           <span className="page-icon">⌂</span>
           <span className="row-label">Home</span>
+        </a>
+        <a
+          className="row row-main"
+          href={href({ view: 'proposals' })}
+          aria-current={route.view === 'proposals' ? 'page' : undefined}
+        >
+          <span className="page-icon">✎</span>
+          <span className="row-label">Proposals</span>
+          {pendingProposals > 0 && (
+            <span className="count-badge" title={`${pendingProposals} waiting for review`}>
+              {pendingProposals}
+            </span>
+          )}
         </a>
         <a
           className="row row-main"

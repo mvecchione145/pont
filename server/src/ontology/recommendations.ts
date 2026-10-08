@@ -5,7 +5,8 @@ import type { ConceptType, RelationType, Source } from './store.js';
 // Recommendations: changes to the ontology proposed by the agents, held for
 // a person to approve or reject. Nothing here changes the ontology itself.
 
-export type Workflow = 'maintain' | 'create';
+// 'agent' recommendations come from agents over MCP rather than a run.
+export type Workflow = 'maintain' | 'create' | 'agent';
 
 export type Recommendation =
   | { action: 'create_concept'; payload: { name: string; type: ConceptType; definition: string; aliases: string[] } }
@@ -19,7 +20,9 @@ export type Recommendation =
   | { action: 'delete_relation'; payload: { relationId: string } };
 
 export interface NewRecommendation {
-  runId: string;
+  runId: string | null;
+  // Who proposed it, for recommendations made over MCP.
+  proposedBy?: string;
   workflow: Workflow;
   recommendation: Recommendation;
   rationale: string;
@@ -29,7 +32,8 @@ export interface NewRecommendation {
 
 export interface StoredRecommendation {
   id: string;
-  runId: string;
+  runId: string | null;
+  proposedBy: string | null;
   workflow: Workflow;
   action: Recommendation['action'];
   payload: Record<string, unknown>;
@@ -60,10 +64,20 @@ export async function saveRecommendation(rec: NewRecommendation): Promise<SaveOu
   );
   if (rows.some((r) => r.status === 'rejected')) return 'previously-rejected';
   if (rows.length) return 'duplicate';
+  // A new concept with the same name as one already waiting for review is a
+  // duplicate even if its wording differs.
+  if (rec.recommendation.action === 'create_concept') {
+    const { rows: sameName } = await db.query(
+      `SELECT 1 FROM ontology_recommendations
+       WHERE status = 'pending' AND action = 'create_concept' AND lower(payload->>'name') = lower($1)`,
+      [rec.recommendation.payload.name.trim()],
+    );
+    if (sameName.length) return 'duplicate';
+  }
   await db.query(
     `INSERT INTO ontology_recommendations
-       (run_id, workflow, action, payload, rationale, evidence, confidence, fingerprint)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       (run_id, workflow, action, payload, rationale, evidence, confidence, fingerprint, proposed_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       rec.runId,
       rec.workflow,
@@ -73,6 +87,7 @@ export async function saveRecommendation(rec: NewRecommendation): Promise<SaveOu
       JSON.stringify(rec.evidence),
       rec.confidence,
       fp,
+      rec.proposedBy ?? null,
     ],
   );
   return 'saved';
@@ -80,7 +95,8 @@ export async function saveRecommendation(rec: NewRecommendation): Promise<SaveOu
 
 interface Row {
   id: string;
-  run_id: string;
+  run_id: string | null;
+  proposed_by: string | null;
   workflow: Workflow;
   action: Recommendation['action'];
   payload: Record<string, unknown>;
@@ -97,6 +113,7 @@ interface Row {
 export const toStored = (r: Row): StoredRecommendation => ({
   id: r.id,
   runId: r.run_id,
+  proposedBy: r.proposed_by,
   workflow: r.workflow,
   action: r.action,
   payload: r.payload,

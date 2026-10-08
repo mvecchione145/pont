@@ -89,5 +89,29 @@ export async function migrate(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS ontology_recommendations_status ON ontology_recommendations (status, created_at);
     CREATE INDEX IF NOT EXISTS ontology_recommendations_fingerprint ON ontology_recommendations (fingerprint);
+
+    -- Ontology recommendations can also come from agents over MCP (no run).
+    ALTER TABLE ontology_recommendations ALTER COLUMN run_id DROP NOT NULL;
+    ALTER TABLE ontology_recommendations ADD COLUMN IF NOT EXISTS proposed_by text;
+
+    -- Page changes proposed by agents over MCP. The diff itself is stored as
+    -- proposals/<id>.patch in the bucket.
+    CREATE TABLE IF NOT EXISTS page_proposals (
+      id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      kind               text NOT NULL,
+      path               text NOT NULL,
+      base_version_id    text,
+      reason             text NOT NULL,
+      proposed_by        text NOT NULL,
+      proposed_by_name   text NOT NULL,
+      status             text NOT NULL DEFAULT 'pending',
+      created_at         timestamptz NOT NULL DEFAULT now(),
+      decided_by         text,
+      decided_at         timestamptz,
+      decision_note      text,
+      applied_version_id text
+    );
+    CREATE INDEX IF NOT EXISTS page_proposals_status ON page_proposals (status, created_at);
+    CREATE INDEX IF NOT EXISTS page_proposals_proposer ON page_proposals (proposed_by, status);
   `);
 }

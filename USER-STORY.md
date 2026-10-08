@@ -184,23 +184,25 @@ pont reuses design ideas from [Onyx](https://github.com/onyx-dot-app/onyx) (MIT-
 
 ## Epic 5 — Agents propose, humans approve *(post-MVP)*
 
-Each proposal is a unified diff (`git diff` format) stored next to the knowledge files. Patches are created and applied in Node.js (for example, with the `diff` npm package), so no git server is needed.
+Each proposal is a unified diff (`git diff` format) stored next to the knowledge files. Patches are created and applied in Node.js with the `diff` npm package, so no git server is needed.
 
 **5.1** As an **Agent**, I want to propose an update when I find context that is missing, outdated, or contradictory, so that the knowledge base gets better over time.
-- [ ] An MCP tool lets an agent submit a proposed change with its reasoning
-- [ ] Each proposal is saved as `proposals/<id>.patch`, with the agent's reasoning and the target file's version ID stored alongside it
-- [ ] A proposal **never** changes a knowledge file directly
+- [x] MCP tools let an agent propose page edits (exact find-and-replace) and new pages, each with its reasoning
+- [x] Each proposal is saved as `proposals/<id>.patch`, with the agent's reasoning and the target page's version ID stored alongside it
+- [x] A proposal **never** changes a knowledge file directly
+- [x] Agents can also propose ontology concepts, aliases, and relationships with verified quotes; these join the Ontology review queue
+- [x] Agents can check what happened to their proposals, including reviewers' notes; each user has at most 25 pending
 
 **5.2** As a **Domain Expert**, I want to review agent proposals and approve, edit, or reject them, so that humans stay in control of what counts as true.
-- [ ] Pending patches appear in a review queue in the UI
-- [ ] Each proposal shows a rendered diff and the agent's reasoning
-- [ ] I can approve (apply the patch and write the file), edit before approving, or reject (archive the patch)
-- [ ] If the target file has changed since the patch was created, the proposal is flagged as stale instead of being applied silently
-- [ ] Once applied, changes are visible to agents and humans
+- [x] Pending proposals appear in a review queue (with a count in the sidebar and a banner on affected pages)
+- [x] Each proposal shows a rendered diff and the agent's reasoning
+- [x] I can approve (apply the patch and write the file), edit before approving, or reject with a note
+- [x] If the target page has changed since the patch was created, the proposal is flagged as stale: shown against the current version if it still applies, and blocked from approval as-is if it doesn't
+- [x] Once applied, changes are visible to agents and humans
 
 **5.3** As a **Domain Expert**, I want to see the history of changes and who approved each one, so that I can trust and audit the knowledge base.
-- [ ] Each entry shows its version history from MinIO bucket versioning, including applied agent proposals
-- [ ] Every version records who wrote it, stored as object metadata
+- [ ] Each entry shows its version history from MinIO bucket versioning, including applied agent proposals (stored, not yet shown in the UI)
+- [x] Every version records who wrote it, stored as object metadata; versions from proposals also record the proposal and who proposed it
 
 ## Epic 6 — Low maintenance
 

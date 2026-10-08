@@ -160,12 +160,17 @@ function RecommendationCard({
       <div className="rec-main">
         <div className="rec-title">
           <strong>{title}</strong>
-          <span className="pill" title="How sure the agent was">
-            {Math.round(rec.confidence * 100)}%
-          </span>
+          {rec.workflow !== 'agent' && (
+            <span className="pill" title="How sure the agent was">
+              {Math.round(rec.confidence * 100)}%
+            </span>
+          )}
         </div>
         {detail && <p className="rec-detail">{detail}</p>}
-        <p className="muted rec-rationale">{rec.rationale}</p>
+        <p className="muted rec-rationale">
+          {rec.proposedBy && <>Proposed by {rec.proposedBy}’s agent: </>}
+          {rec.rationale}
+        </p>
         <ul className="evidence">
           {rec.evidence.map((e, i) => (
             <li key={i}>
@@ -325,6 +330,7 @@ export function OntologyPage() {
   const groups: [string, string, OntologyRecommendation[]][] = [
     ['maintain', 'Updates and deletions', recs.filter((r) => r.workflow === 'maintain')],
     ['create', 'New concepts and relationships', recs.filter((r) => r.workflow === 'create')],
+    ['agent', 'Proposed by agents (MCP)', recs.filter((r) => r.workflow === 'agent')],
   ];
 
   return (

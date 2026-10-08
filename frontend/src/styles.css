@@ -1485,3 +1485,157 @@ button.row-main.row:hover {
 .actions.end {
   justify-content: flex-end;
 }
+
+/* Proposals */
+
+.count-badge {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.proposals .tabs,
+.proposals > .banner {
+  margin-bottom: 1rem;
+}
+
+.proposals-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .proposals-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.proposal-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 75vh;
+  overflow: auto;
+}
+
+.proposal-list button {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+}
+
+.proposal-list button.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.proposal-path {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.proposal-list .muted {
+  font-size: 12px;
+}
+
+.proposal-reason {
+  font-size: 13px;
+  color: var(--fg-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.proposal-review header h2 {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.proposal-review header p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.reason {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.9rem;
+  border-left: 3px solid var(--border);
+  color: var(--fg-soft);
+  font-size: 14px;
+}
+
+.proposal-review .banner {
+  margin: 0 0 1rem;
+}
+
+.diff {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-line {
+  display: block;
+  padding: 0 0.8rem;
+}
+
+.diff-line.add {
+  background: color-mix(in srgb, var(--up) 14%, transparent);
+}
+
+.diff-line.del {
+  background: color-mix(in srgb, var(--down) 14%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--down) 50%, transparent);
+}
+
+.diff-line.hunk {
+  color: var(--fg-faint);
+  text-align: center;
+}
+
+.proposal-edit textarea {
+  width: 100%;
+  min-height: 22rem;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin-bottom: 0.75rem;
+}
+
+.reject-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.reject-form input {
+  flex: 1;
+}
+
+.proposals-banner {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+}

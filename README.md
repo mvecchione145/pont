@@ -49,7 +49,12 @@ The user can now sign in at http://localhost:3000.
      --header "Authorization: Bearer pont_..."
    ```
 
-Claude Code can then call pont's MCP tools as you: `search`, `read_entry`, and `list_entries`. Revoke a token on the same page when you no longer need it.
+Claude Code can then call pont's MCP tools as you:
+
+- **Read:** `search`, `read_entry`, `list_entries`
+- **Propose** (reviewed by a person before anything changes): `propose_edit`, `propose_new_page`, `propose_concept`, `propose_alias`, `propose_relation`, and `list_my_proposals` to see what happened to them
+
+Revoke a token on the same page when you no longer need it.
 
 > Keycloak imports `infra/keycloak/pont-realm.json` only on its first start. After changing that file, run `docker compose down -v` to reset the data and import it again.
 
@@ -87,6 +92,15 @@ Click **Upload** in the sidebar, then drop files or whole folders (or use **Choo
 | `.pdf` | Text only: layout, tables, and images are not kept, and scanned PDFs (images of text) have no text to import |
 
 Before anything is written, a preview lists every file with its destination page. Files that would replace an existing page are **skipped unless you tick "Replace existing"**; replaced pages keep their previous versions in history. Hidden files (such as `.DS_Store` and `.git/`) and unsupported types are skipped. Limits: 10 MB per file, 50 MB and 500 files per upload. Imported pages are searchable and available to agents a few seconds later.
+
+### Agent proposals
+
+Agents connected through MCP can suggest fixes when they find something missing, outdated, or contradictory, but they can never change anything themselves:
+
+- `propose_edit` takes exact find-and-replace edits (each `find` must match the page exactly once), and `propose_new_page` takes a new Markdown page. pont stores each proposal as a unified diff (`proposals/<id>.patch`) against the page version the agent saw.
+- `propose_concept`, `propose_alias`, and `propose_relation` must quote supporting passages (checked against the pages) and join the review queue on the **Ontology** page.
+
+Page proposals appear on the **Proposals** page (with a count in the sidebar and a banner on affected pages). Each shows the agent's reason and a diff, and can be **approved**, **edited and approved**, or **rejected** with a note the agent can read. If the page changed after the proposal was made, it is flagged: the diff is shown against the current version when it still applies, and can only be edited in by hand when it doesn't. Versions saved from proposals record the proposal and who proposed it, with the approver as author. Each user can have at most 25 proposals waiting for review.
 
 ### Ontology
 

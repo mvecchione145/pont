@@ -12,6 +12,7 @@ import { settingsRouter } from './routes/settings.js';
 import { triviaRouter, triviaErrors } from './routes/trivia.js';
 import { uploadsRouter, uploadErrors } from './routes/uploads.js';
 import { ontologyRouter, ontologyErrors } from './routes/ontology.js';
+import { proposalsRouter, proposalErrors } from './routes/proposals.js';
 import { failInterruptedRuns } from './ontology/runs.js';
 import { startIndexer } from './search/index.js';
 
@@ -47,6 +48,7 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/trivia', triviaRouter, triviaErrors);
 app.use('/api/uploads', uploadsRouter, uploadErrors);
 app.use('/api/ontology', ontologyRouter, ontologyErrors);
+app.use('/api/proposals', proposalsRouter, proposalErrors);
 
 await redis.connect();
 await migrate();
