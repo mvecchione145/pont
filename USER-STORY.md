@@ -170,7 +170,9 @@ pont reuses design ideas from [Onyx](https://github.com/onyx-dot-app/onyx) (MIT-
 **3.5** As a **Domain Expert**, I want to link to other pages and to specific headings, so that readers (and agents) can jump straight to the related detail.
 - [x] `[[` finds pages and headings as well as ontology concepts; `#` targets a heading (`[[#escal` on this page, `[[onboarding#escal` on another)
 - [x] Links are plain Markdown (`#/p/<path>` and `#/p/<path>?section=<heading>`); following a heading link scrolls to the heading and highlights it
-- [ ] Links are updated when the target page is renamed or moved, or flagged when they break
+- [x] Dead links are found without an LLM: links to moved, deleted, or missing pages, renamed headings, and deleted concepts, shown in the page's Review panel and on a workspace-wide **Link check** page
+- [x] Each dead link suggests a new destination when pont can find one (where the page was moved, following chains of moves; the closest heading; a concept with the link's name) and can be repointed or unlinked in one click
+- [ ] Links are updated automatically when the target page is renamed or moved
 
 ## Epic 4 — Agents use context through MCP
 

@@ -33,6 +33,7 @@ export interface Version {
   restoredFrom?: string;
   movedFrom?: string;
   reviewId?: string;
+  linkFix?: boolean;
 }
 
 const decode = (value?: string) => (value ? decodeURIComponent(value) : undefined);
@@ -46,6 +47,7 @@ function provenance(meta: Record<string, string> | undefined): Partial<Version> 
     restoredFrom: meta['restored-from'],
     movedFrom: decode(meta['moved-from']),
     reviewId: meta['review-id'],
+    linkFix: meta['link-fix'] === '1' || undefined,
   };
 }
 
@@ -90,6 +92,14 @@ export async function listVersions(path: string): Promise<Version[]> {
       return { ...base, ...provenance(head.Metadata) };
     }),
   );
+}
+
+// Whether a page ever existed (it has saved versions or a delete marker),
+// without reading each version's metadata.
+export async function hasHistory(path: string): Promise<boolean> {
+  const key = keyFor(path);
+  const page = await s3.send(new ListObjectVersionsCommand({ Bucket: bucket, Prefix: key, MaxKeys: 10 }));
+  return [...(page.Versions ?? []), ...(page.DeleteMarkers ?? [])].some((v) => v.Key === key);
 }
 
 async function readVersion(path: string, versionId: string): Promise<string> {

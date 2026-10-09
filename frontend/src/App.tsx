@@ -10,6 +10,7 @@ import { Trivia } from './components/Trivia';
 import { Settings } from './components/Settings';
 import { UploadDialog } from './components/UploadDialog';
 import { OntologyPage } from './components/OntologyPage';
+import { LinkCheckPage } from './components/DeadLinks';
 import { ProposalsPage } from './components/ProposalsPage';
 import { HistoryPage } from './components/HistoryPage';
 import { ConceptPage, RelationPage } from './components/ConceptPage';
@@ -149,6 +150,11 @@ export default function App() {
         {route.view === 'ontology' && (
           <div className="page wide">
             <OntologyPage />
+          </div>
+        )}
+        {route.view === 'links' && (
+          <div className="page">
+            <LinkCheckPage />
           </div>
         )}
         {route.view === 'settings' && (

@@ -144,5 +144,15 @@ export async function migrate(): Promise<void> {
       finished_at     timestamptz
     );
     CREATE INDEX IF NOT EXISTS page_reviews_path ON page_reviews (path, started_at DESC);
+
+    -- Where pages were moved or renamed to, so links to an old path can be
+    -- pointed at the new one. Moves made before this table existed are
+    -- backfilled once from the "moved-from" metadata in page history.
+    CREATE TABLE IF NOT EXISTS page_moves (
+      from_path text NOT NULL,
+      to_path   text NOT NULL,
+      moved_at  timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (from_path, to_path)
+    );
   `);
 }

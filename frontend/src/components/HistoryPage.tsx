@@ -15,6 +15,7 @@ function Badges({ v }: { v: PageVersion }) {
       {v.restoredFrom && <span className="pill">Restored</span>}
       {v.movedFrom && <span className="pill">Moved here</span>}
       {v.reviewId && <span className="pill">From a review</span>}
+      {v.linkFix && <span className="pill">Link fix</span>}
     </span>
   );
 }

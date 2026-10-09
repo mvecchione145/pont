@@ -41,7 +41,11 @@ export interface Entry {
 
 // Emits "saved" and "deleted" with the entry path, so other parts of the
 // server (the search indexer) can follow changes without coupling to storage.
-export const entryEvents = new EventEmitter<{ saved: [path: string]; deleted: [path: string] }>();
+export const entryEvents = new EventEmitter<{
+  saved: [path: string];
+  deleted: [path: string];
+  moved: [from: string, to: string];
+}>();
 
 export class EntryError extends Error {
   constructor(
@@ -209,5 +213,6 @@ export async function moveEntry(
   // The new path's history links back to where it came from.
   const moved = await saveEntry(to, source.content, null, user, { 'moved-from': encodeURIComponent(from) });
   await deleteEntry(from);
+  entryEvents.emit('moved', from, to);
   return moved;
 }

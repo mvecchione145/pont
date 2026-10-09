@@ -2280,3 +2280,27 @@ select {
   background: color-mix(in srgb, var(--up) 14%, transparent);
   color: var(--fg);
 }
+
+/* Dead links */
+
+.review-item.dead {
+  border-left: 3px solid var(--down);
+}
+
+.pill.dead {
+  color: var(--down);
+}
+
+.dead-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.link-check .section-heading a {
+  color: inherit;
+}
+
+.review-dead {
+  margin-bottom: 1rem;
+}

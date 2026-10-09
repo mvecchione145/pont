@@ -8,6 +8,7 @@ import {
   type ReviewSuggestion,
 } from '../api';
 import { href } from '../route';
+import { DeadLinkList, useDeadLinks } from './DeadLinks';
 
 // The page review side panel: asks before spending on the LLM, runs the review
 // in the background, and lists suggestions, conflicts, and missing ontology
@@ -216,6 +217,8 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showHandled, setShowHandled] = useState(false);
+  // Dead links are checked without the LLM, as soon as the panel opens.
+  const dead = useDeadLinks(path);
 
   useEffect(() => {
     let cancelled = false;
@@ -276,7 +279,10 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
       }
       const updated = await api.decideReviewItem(review.id, itemId, action);
       setReview(updated);
-      if (action === 'apply') onApplied();
+      if (action === 'apply') {
+        onApplied();
+        dead.reload();
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -312,6 +318,21 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
       </header>
 
       {error && <p className="down review-error">{error}</p>}
+
+      {dead.links && dead.links.length > 0 && !confirming && (
+        <div className="review-dead">
+          <h3>Dead links ({dead.links.length})</h3>
+          <DeadLinkList
+            path={path}
+            links={dead.links}
+            beforeFix={beforeApply}
+            onFixed={() => {
+              dead.reload();
+              onApplied();
+            }}
+          />
+        </div>
+      )}
 
       {confirming ? (
         <div className="review-confirm">

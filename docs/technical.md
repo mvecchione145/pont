@@ -175,7 +175,7 @@ Give Docker at least **2 GB** of memory, and **4 GB** to be comfortable. Indexin
 | `ontology/ontology.yaml` | The approved ontology: concepts and relationships |
 | `proposals/<id>.patch` | Agent page proposals, as unified diffs |
 
-**Postgres** (`pont` database): API tokens (hashes only), settings (with the encrypted LLM key), trivia questions and scores, ontology runs, page snapshots and recommendations, page proposals, page reviews, and an index of which pages link to which ontology items (rebuilt on every start).
+**Postgres** (`pont` database): API tokens (hashes only), settings (with the encrypted LLM key), trivia questions and scores, ontology runs, page snapshots and recommendations, page proposals, page reviews, page moves (so dead links can point to where a page went), and an index of which pages link to which ontology items (rebuilt on every start).
 
 **Redis**: one hash per chunk (`pont:chunk:*`) in the index `idx:pont:chunks`, plus which version of each page is indexed.
 
@@ -189,6 +189,19 @@ Back up the `minio-data` and `postgres-data` volumes. Redis can be rebuilt from 
 - **Freshness:** a page is re-indexed about 1.5 seconds after it's saved, moved, or deleted. On start, the index catches up with MinIO and rebuilds itself if the model or chunking changed.
 
 These ideas are adapted from [Onyx](https://github.com/onyx-dot-app/onyx); pont doesn't depend on it or reuse its code.
+
+## Links and dead links
+
+Pages link to each other as `#/p/<path>`, to headings as `#/p/<path>?section=<heading>`, and to the ontology as `#/concept/<id>` or `#/relation/<id>`, all plain Markdown. The server keeps every page's headings in memory for the link picker. The dead-link check (no LLM) parses every internal link outside code and flags:
+
+| Problem | Suggested fix |
+|---|---|
+| The page was moved or renamed | Where it went, following chains of moves recorded in `page_moves` (moves from before this feature are backfilled once from page history) |
+| The page was deleted, or never existed | A page with the same (or a very similar) name, if there is one |
+| The heading is gone | The closest heading on that page by text similarity, or the page itself |
+| The concept or relationship is gone | One with the link's text as its name or alias, or the closest by name |
+
+Fixes rewrite every link with that destination on the page and save a new version, marked *Link fix* in the history.
 
 ## LLM features
 

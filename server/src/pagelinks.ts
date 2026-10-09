@@ -51,6 +51,9 @@ export function extractHeadings(markdown: string): Heading[] {
 
 const index = new Map<string, Heading[]>();
 
+// The headings of a page, or undefined for a page that doesn't exist.
+export const headingsOf = (path: string) => index.get(path);
+
 async function reindex(path: string): Promise<void> {
   try {
     index.set(path, extractHeadings((await getEntry(path)).content));

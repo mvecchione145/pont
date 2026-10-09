@@ -158,6 +158,16 @@ export interface LinkTarget {
   level?: number;
 }
 
+// An internal link whose destination is gone (see server/src/deadlinks.ts).
+export interface DeadLink {
+  href: string;
+  text: string;
+  count: number;
+  problem: 'page_moved' | 'page_deleted' | 'page_missing' | 'heading_missing' | 'concept_missing' | 'relation_missing';
+  message: string;
+  suggestion: { href: string; label: string; reason: string } | null;
+}
+
 export interface OntologyHit {
   kind: 'concept' | 'relation';
   id: string;
@@ -253,6 +263,7 @@ export interface PageVersion {
   restoredFrom?: string;
   movedFrom?: string;
   reviewId?: string;
+  linkFix?: boolean;
 }
 
 export type ReviewItemState = 'open' | 'applied' | 'dismissed';
@@ -466,6 +477,10 @@ export const api = {
     }),
   searchLinkTargets: (q: string, from: string) =>
     request<LinkTarget[]>(`/api/links/search?${new URLSearchParams({ q, from })}`),
+  deadLinks: (path: string) => request<DeadLink[]>(`/api/links/dead?${new URLSearchParams({ path })}`),
+  allDeadLinks: () => request<{ path: string; links: DeadLink[] }[]>('/api/links/dead'),
+  fixLink: (path: string, href: string, to: string | null) =>
+    request<{ versionId: string | null; fixed: number }>('/api/links/fix', json('POST', { path, href, to })),
   searchOntology: (q: string) => request<OntologyHit[]>(`/api/ontology/search?${new URLSearchParams({ q })}`),
   concept: (id: string) => request<ConceptDetail>(`/api/ontology/concepts/${encodeURIComponent(id)}`),
   createConcept: (body: { name: string; type: string; definition?: string; aliases?: string[] }) =>

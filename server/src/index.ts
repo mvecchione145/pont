@@ -19,7 +19,8 @@ import { failInterruptedReviews } from './review.js';
 import { failInterruptedRuns } from './ontology/runs.js';
 import { startLinkIndex } from './ontology/links.js';
 import { startPageLinkIndex } from './pagelinks.js';
-import { linksRouter } from './routes/links.js';
+import { linkErrors, linksRouter } from './routes/links.js';
+import { startMoveTracking } from './deadlinks.js';
 import { startIndexer } from './search/index.js';
 
 const app = express();
@@ -57,7 +58,7 @@ app.use('/api/ontology', ontologyRouter, ontologyErrors);
 app.use('/api/proposals', proposalsRouter, proposalErrors);
 app.use('/api/history', historyRouter, historyErrors);
 app.use('/api/reviews', reviewsRouter, reviewErrors);
-app.use('/api/links', linksRouter);
+app.use('/api/links', linksRouter, linkErrors);
 
 await redis.connect();
 await migrate();
@@ -73,6 +74,7 @@ const server = app.listen(config.port, () => {
 void startIndexer();
 void startLinkIndex();
 void startPageLinkIndex();
+void startMoveTracking();
 
 async function shutdown() {
   server.close();
