@@ -1761,7 +1761,7 @@ button.row-main.row:hover {
   border-bottom: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
-.link-ontology {
+.bar-button {
   border: none;
   font-size: 13px;
   color: var(--fg-soft);
@@ -1981,7 +1981,7 @@ select {
 
 /* Page review panel */
 
-.link-ontology.active {
+.bar-button.active {
   background: var(--hover);
   color: var(--fg);
 }

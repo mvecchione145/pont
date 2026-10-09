@@ -10,9 +10,11 @@ export interface EditorHandle {
   // Puts the cursor at the start of the document, like pressing Enter in a
   // Notion page title.
   focusStart: () => void;
-  // Opens the ontology link picker for the current selection.
-  openLinkPicker: () => void;
 }
+
+// A diamond (the ontology's mark in the sidebar) with a chain link. Drawn as
+// filled shapes, since Crepe colours its menu icons with "fill".
+const ONTOLOGY_LINK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M9 1.5 16.5 9 9 16.5 1.5 9Zm0 3L4.5 9 9 13.5 13.5 9Z"/><path fill-rule="evenodd" d="M15 14.5h4a3.25 3.25 0 0 1 0 6.5h-4a3.25 3.25 0 0 1 0-6.5Zm0 2a1.25 1.25 0 0 0 0 2.5h4a1.25 1.25 0 0 0 0-2.5Z"/></svg>`;
 
 interface Props {
   ref?: Ref<EditorHandle>;
@@ -38,8 +40,10 @@ const TRIGGER = /\[\[([^[\]\n￼]{0,60})$/;
 
 // Notion-style block editor (Milkdown Crepe) that reads and writes Markdown
 // directly: "/" opens the block menu, blocks have drag handles, and selecting
-// text shows a formatting toolbar. "[[" or Cmd/Ctrl+Shift+K links text to the
-// ontology as a plain Markdown link to #/concept/<id> or #/relation/<id>.
+// text shows a formatting toolbar. Text links to the ontology, as a plain
+// Markdown link to #/concept/<id> or #/relation/<id>, from "[[", from
+// Cmd/Ctrl+Shift+K, from the toolbar's "Ontology link" button (selected text),
+// or from "/" > Advanced > "Ontology link" (inserted at the cursor).
 export function Editor({ ref, initialMarkdown, onChange }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const crepeRef = useRef<Crepe | null>(null);
@@ -88,6 +92,11 @@ export function Editor({ ref, initialMarkdown, onChange }: Props) {
       });
     });
 
+  // The editor's menus are configured once, at mount; they call the latest
+  // version of this through a ref.
+  const openFromSelectionRef = useRef(openFromSelection);
+  openFromSelectionRef.current = openFromSelection;
+
   useImperativeHandle(ref, () => ({
     focusStart() {
       withView((view) => {
@@ -95,7 +104,6 @@ export function Editor({ ref, initialMarkdown, onChange }: Props) {
         view.focus();
       });
     },
-    openLinkPicker: openFromSelection,
   }));
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -114,6 +122,32 @@ export function Editor({ ref, initialMarkdown, onChange }: Props) {
         [CrepeFeature.Placeholder]: { text: "Type '/' for commands, or [[ to link a concept", mode: 'block' },
         [CrepeFeature.BlockEdit]: {
           advancedGroup: { image: null, math: null },
+          buildMenu: (builder) => {
+            builder.getGroup('advanced').addItem('ontology-link', {
+              label: 'Ontology link',
+              icon: ONTOLOGY_LINK_ICON,
+              onRun: (ctx) => {
+                // Remove the typed "/query", then link at the cursor.
+                const view = ctx.get(editorViewCtx);
+                const { $from } = view.state.selection;
+                const before = $from.parent.textBetween(0, $from.parentOffset, undefined, '\ufffc');
+                const slash = before.lastIndexOf('/');
+                if (slash >= 0) view.dispatch(view.state.tr.delete($from.start() + slash, $from.pos));
+                view.focus();
+                openFromSelectionRef.current();
+              },
+            });
+          },
+        },
+        [CrepeFeature.Toolbar]: {
+          buildToolbar: (builder) => {
+            builder.getGroup('function').addItem('ontology-link', {
+              label: 'Ontology link (⌘⇧K)',
+              icon: ONTOLOGY_LINK_ICON,
+              active: () => false,
+              onRun: () => openFromSelectionRef.current(),
+            });
+          },
         },
       },
     });

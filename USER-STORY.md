@@ -266,7 +266,7 @@ Turns free-text documentation into explicit concepts and relationships that peop
 - [x] Each page lists the documentation that links to it
 
 **8.6** As a **Domain Expert**, I want to link words in the documentation to ontology concepts, so that readers and agents know exactly what a term means.
-- [x] Typing `[[` or pressing ⌘⇧K opens a picker of matching concepts and relationships (name, type, description), with "create concept" when nothing fits
+- [x] Typing `[[`, pressing ⌘⇧K, the **Ontology link** button in the selection toolbar, or `/` → Advanced → **Ontology link** opens a picker of matching concepts and relationships (name, type, description), with "create concept" when nothing fits
 - [x] Links are plain Markdown (`#/concept/<id>`), and agents can resolve them with the `get_concept` MCP tool
 
 ## Epic 9 — Page review *(post-MVP)*
