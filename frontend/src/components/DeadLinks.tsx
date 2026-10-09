@@ -3,8 +3,8 @@ import { api, type DeadLink } from '../api';
 import { href } from '../route';
 
 // Dead links: internal links whose page, heading, or concept is gone, with a
-// suggested new destination when pont can find one. Shown in a page's Review
-// panel (that page) and on the Link check page (every page).
+// suggested new destination when pont can find one. Part of a page's Review
+// panel; found without the LLM, so they show as soon as the panel opens.
 
 const PROBLEM: Record<DeadLink['problem'], string> = {
   page_moved: 'Page moved',
@@ -95,53 +95,6 @@ function decodeTarget(link: string): string {
       }
     })
     .join('/');
-}
-
-// The Link check page: dead links on every page.
-export function LinkCheckPage() {
-  const [pages, setPages] = useState<{ path: string; links: DeadLink[] }[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    setError(null);
-    api.allDeadLinks().then(setPages, (err: Error) => setError(err.message));
-  }, []);
-  useEffect(load, [load]);
-
-  const total = pages?.reduce((n, p) => n + p.links.reduce((m, l) => m + l.count, 0), 0) ?? 0;
-
-  return (
-    <div className="link-check">
-      <h1 className="page-title static">Link check</h1>
-      <p className="lead">
-        Links to pages, headings, and concepts that no longer exist, for example after a page was moved, renamed, or
-        deleted. Point each one at its new home, or unlink it.
-      </p>
-      <div className="actions">
-        <button onClick={load}>Check again</button>
-      </div>
-      {error && <p className="down">{error}</p>}
-      {!pages ? (
-        <p className="muted">Checking every page…</p>
-      ) : pages.length === 0 ? (
-        <p className="up">No dead links. Every internal link points somewhere that exists.</p>
-      ) : (
-        <>
-          <p className="muted">
-            {total} dead {total === 1 ? 'link' : 'links'} on {pages.length} {pages.length === 1 ? 'page' : 'pages'}.
-          </p>
-          {pages.map((p) => (
-            <section key={p.path}>
-              <h2 className="section-heading">
-                <a href={href({ view: 'page', path: p.path })}>{p.path}</a>
-              </h2>
-              <DeadLinkList path={p.path} links={p.links} onFixed={load} />
-            </section>
-          ))}
-        </>
-      )}
-    </div>
-  );
 }
 
 // Dead links on one page, for its Review panel. Loads on its own (no LLM).

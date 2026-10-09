@@ -478,7 +478,6 @@ export const api = {
   searchLinkTargets: (q: string, from: string) =>
     request<LinkTarget[]>(`/api/links/search?${new URLSearchParams({ q, from })}`),
   deadLinks: (path: string) => request<DeadLink[]>(`/api/links/dead?${new URLSearchParams({ path })}`),
-  allDeadLinks: () => request<{ path: string; links: DeadLink[] }[]>('/api/links/dead'),
   fixLink: (path: string, href: string, to: string | null) =>
     request<{ versionId: string | null; fixed: number }>('/api/links/fix', json('POST', { path, href, to })),
   searchOntology: (q: string) => request<OntologyHit[]>(`/api/ontology/search?${new URLSearchParams({ q })}`),

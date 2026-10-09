@@ -408,7 +408,7 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
           {!review && (
             <p className="muted">
               Get suggestions that make this page clearer, find places where it contradicts other pages, and
-              link terms that are in the ontology.
+              link terms that are in the ontology. Dead links are checked for free as soon as the panel opens.
             </p>
           )}
           <button className={review ? undefined : 'primary'} onClick={ask}>

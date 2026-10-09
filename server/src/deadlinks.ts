@@ -312,23 +312,6 @@ export async function deadLinksIn(path: string): Promise<DeadLink[]> {
   return checkContent((await getEntry(path)).content, ctx);
 }
 
-export async function deadLinksEverywhere(): Promise<{ path: string; links: DeadLink[] }[]> {
-  const ctx = await context();
-  const result: { path: string; links: DeadLink[] }[] = [];
-  for (const path of [...ctx.pages].sort()) {
-    let content: string;
-    try {
-      content = (await getEntry(path)).content;
-    } catch (err) {
-      if (err instanceof EntryError && err.status === 404) continue;
-      throw err;
-    }
-    const links = await checkContent(content, ctx);
-    if (links.length) result.push({ path, links });
-  }
-  return result;
-}
-
 // --- Fixing -------------------------------------------------------------------------
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

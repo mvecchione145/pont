@@ -1,11 +1,10 @@
 import { Router, type ErrorRequestHandler } from 'express';
-import { deadLinksEverywhere, deadLinksIn, fixLinks, LinkFixError } from '../deadlinks.js';
+import { deadLinksIn, fixLinks, LinkFixError } from '../deadlinks.js';
 import { EntryError, parsePath } from '../entries.js';
 import { searchLinkTargets } from '../pagelinks.js';
 
 // GET  /api/links/search?q=...&from=<page>  pages and headings for the link picker
 // GET  /api/links/dead?path=<page>          dead links on one page
-// GET  /api/links/dead                      dead links on every page
 // POST /api/links/fix { path, href, to }    repoint links to href ("to" null: unlink)
 export const linksRouter = Router();
 
@@ -16,8 +15,8 @@ linksRouter.get('/search', (req, res) => {
 });
 
 linksRouter.get('/dead', async (req, res) => {
-  const path = typeof req.query.path === 'string' && req.query.path ? parsePath(req.query.path) : null;
-  res.json(path ? await deadLinksIn(path) : await deadLinksEverywhere());
+  if (typeof req.query.path !== 'string' || !req.query.path) throw new LinkFixError('"path" is required.');
+  res.json(await deadLinksIn(parsePath(req.query.path)));
 });
 
 linksRouter.post('/fix', async (req, res) => {

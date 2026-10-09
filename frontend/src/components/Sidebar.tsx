@@ -145,14 +145,6 @@ export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload, p
         </a>
         <a
           className="row row-main"
-          href={href({ view: 'links' })}
-          aria-current={route.view === 'links' ? 'page' : undefined}
-        >
-          <span className="page-icon">⛓</span>
-          <span className="row-label">Link check</span>
-        </a>
-        <a
-          className="row row-main"
           href={href({ view: 'trivia' })}
           aria-current={route.view === 'trivia' ? 'page' : undefined}
         >

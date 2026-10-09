@@ -337,7 +337,7 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
           <span className={`save-status ${saveState}`}>{status}</span>
           <button
             className={`bar-button review-button ${reviewing ? 'active' : ''}`}
-            title="Suggestions to make this page clearer, conflicts with other pages, and missing ontology links"
+            title="Suggestions to make this page clearer, conflicts with other pages, missing ontology links, and dead links"
             aria-pressed={reviewing}
             onClick={() => setReviewing(!reviewing)}
           >

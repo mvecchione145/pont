@@ -87,7 +87,7 @@ Type `[[` and a few letters to link to another page, a heading, or an ontology c
 | `[[#escal` | The *Escalation* heading on this page | `[Escalation](#/p/<this page>?section=Escalation)` |
 | `[[onboarding#escal` | The *Escalation* heading on the onboarding page | `[Escalation](#/p/processes/onboarding?section=Escalation)` |
 
-Links break when a page is moved, renamed, or deleted, a heading is renamed, or a concept is deleted. **Link check** in the sidebar lists every dead link in the workspace, and the **✦ Review** panel shows the current page's dead links as soon as it opens (no LLM needed). Each one suggests where it should point now when pont can tell (for example, where the page was moved), with **Point to …** to repoint every link to that destination on the page, or **Unlink** to keep the text.
+Links break when a page is moved, renamed, or deleted, a heading is renamed, or a concept is deleted. The page's **✦ Review** panel lists its dead links as soon as it opens (finding them needs no LLM, so it's free). Each one suggests where it should point now when pont can tell (for example, where the page was moved), with **Point to …** to repoint every link to that destination on the page, or **Unlink** to keep the text.
 
 You can also select text and press **⌘⇧K** or use the toolbar button to turn it into a link. **⌘-click** (Ctrl-click) a link to follow it: a heading link opens the page scrolled to that heading and highlights it. Agents see the same links when they read a page and can follow them with `read_entry`.
 
