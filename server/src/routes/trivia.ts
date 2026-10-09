@@ -1,4 +1,7 @@
 import { Router, type ErrorRequestHandler } from 'express';
+import { QUESTION_TOKENS } from '../llm/generate.js';
+import { getSettings } from '../llm/settings.js';
+import { priceFor } from '../ontology/runs.js';
 import { answer, currentQuestion, leaderboard, LlmError, nextQuestion, skip, TriviaError } from '../trivia.js';
 
 export const triviaRouter = Router();
@@ -29,6 +32,23 @@ triviaRouter.post('/questions/:id/answer', async (req, res) => {
 
 triviaRouter.post('/questions/:id/skip', async (req, res) => {
   res.json(await skip(req.user!, questionId(req.params.id)));
+});
+
+// What one question costs, roughly, so players know before they start.
+triviaRouter.get('/cost', async (_req, res) => {
+  const settings = await getSettings().catch(() => null);
+  if (!settings) {
+    res.json(null);
+    return;
+  }
+  const cost = priceFor(settings.model, QUESTION_TOKENS.input, QUESTION_TOKENS.output);
+  res.json({
+    provider: settings.provider,
+    model: settings.model,
+    inputTokens: QUESTION_TOKENS.input,
+    outputTokens: QUESTION_TOKENS.output,
+    costUsd: cost === null ? null : { low: cost * 0.5, high: cost * 2 },
+  });
 });
 
 triviaRouter.get('/leaderboard', async (req, res) => {

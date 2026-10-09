@@ -4,6 +4,15 @@ import { href, nameOf, navigate } from '../route';
 import { GameTabs } from './OntologyGames';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
+// A per-question cost range, in cents when small: "1–2¢", "$0.10–$0.40".
+function costRange({ low, high }: { low: number; high: number }): string {
+  if (high < 1) {
+    const lo = Math.max(1, Math.round(low * 100));
+    const hi = Math.max(lo, Math.ceil(high * 100));
+    return lo === hi ? `${lo}¢` : `${lo}–${hi}¢`;
+  }
+  return `$${low.toFixed(2)}–$${high.toFixed(2)}`;
+}
 
 function Leaderboard({ me, refreshKey }: { me: User | null; refreshKey: number }) {
   const [period, setPeriod] = useState<'all' | 'week'>('week');
@@ -62,9 +71,11 @@ export function Trivia({ user }: Props) {
   const [state, setState] = useState<'idle' | 'loading' | 'answering'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [cost, setCost] = useState<Awaited<ReturnType<typeof api.triviaCost>>>(null);
 
   useEffect(() => {
     api.getLlmSettings().then((s) => setConfigured(s.configured), () => setConfigured(false));
+    api.triviaCost().then(setCost, () => undefined);
     api.currentQuestion().then(setQuestion, (err: Error) => setError(err.message));
   }, []);
 
@@ -154,6 +165,31 @@ export function Trivia({ user }: Props) {
           )}
         </p>
 
+        {configured && (
+          <div className="ai-notice" role="note">
+            <span className="ai-star" aria-hidden>
+              ✦
+            </span>
+            <span>
+              <strong>Uses AI, which costs money.</strong> Each question is written by{' '}
+              {cost ? (
+                <>
+                  {cost.model} ({cost.provider === 'anthropic' ? 'Anthropic' : 'your OpenAI-compatible provider'})
+                </>
+              ) : (
+                'the LLM set up in Settings'
+              )}{' '}
+              and incurs LLM costs on that account
+              {cost?.costUsd && (
+                <>
+                  , about {costRange(cost.costUsd)} per question
+                </>
+              )}
+              . Flashcards and Match are free.
+            </span>
+          </div>
+        )}
+
         {configured === false && (
           <div className="empty-state">
             <p>Trivia needs an LLM to write questions.</p>
@@ -168,8 +204,8 @@ export function Trivia({ user }: Props) {
         {configured && !question && state !== 'loading' && (
           <div className="empty-state">
             <p>Ready? Each question comes from a real section of your documentation.</p>
-            <button className="primary" onClick={next}>
-              Start
+            <button className="primary" onClick={next} title="Writes a question with the LLM (incurs LLM costs)">
+              ✦ Start
             </button>
           </div>
         )}
@@ -223,8 +259,8 @@ export function Trivia({ user }: Props) {
                   <button onClick={factCheck} title="Open the section this question came from and fix anything that's wrong">
                     Fact check this section
                   </button>
-                  <button className="primary" onClick={next}>
-                    Next question
+                  <button className="primary" onClick={next} title="Writes a question with the LLM (incurs LLM costs)">
+                    ✦ Next question
                   </button>
                 </div>
                 <p className="muted hint">

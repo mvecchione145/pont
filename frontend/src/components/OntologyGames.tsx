@@ -20,8 +20,8 @@ function shuffle<T>(items: T[]): T[] {
 
 // --- Tabs shared by the game pages -----------------------------------------------
 
-const GAMES: { view: 'trivia' | 'flashcards' | 'match'; label: string }[] = [
-  { view: 'trivia', label: 'Trivia' },
+const GAMES: { view: 'trivia' | 'flashcards' | 'match'; label: string; ai?: boolean }[] = [
+  { view: 'trivia', label: 'Trivia', ai: true },
   { view: 'flashcards', label: 'Flashcards' },
   { view: 'match', label: 'Match' },
 ];
@@ -30,8 +30,18 @@ export function GameTabs({ current }: { current: Route['view'] }) {
   return (
     <nav className="game-tabs" aria-label="Games">
       {GAMES.map((g) => (
-        <a key={g.view} href={href({ view: g.view })} aria-current={current === g.view ? 'page' : undefined}>
+        <a
+          key={g.view}
+          href={href({ view: g.view })}
+          aria-current={current === g.view ? 'page' : undefined}
+          title={g.ai ? 'Uses AI: each question is written by an LLM and incurs LLM costs' : 'Free: no AI involved'}
+        >
           {g.label}
+          {g.ai && (
+            <span className="ai-star" aria-label="(uses AI, incurs LLM costs)">
+              ✦
+            </span>
+          )}
         </a>
       ))}
     </nav>

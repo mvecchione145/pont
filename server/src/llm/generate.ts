@@ -32,6 +32,11 @@ export interface Passage {
 const userPrompt = (p: Passage) =>
   `Page: ${p.title}${p.headings ? `\nSection: ${p.headings}` : ''}\n\n<passage>\n${p.content}\n</passage>`;
 
+// Rough size of one question, for the cost shown before playing: the
+// instructions and output schema, plus one search chunk (at most ~384
+// tokens), and a short JSON answer.
+export const QUESTION_TOKENS = { input: Math.round(SYSTEM.length / 3.5) + 384 + 450, output: 300 };
+
 export async function generateQuestion(settings: LlmSettings, passage: Passage): Promise<GeneratedQuestion> {
   const { data: q } = await structured(settings, {
     system: SYSTEM,

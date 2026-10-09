@@ -241,7 +241,7 @@ Every concept and relationship has its own page where you can edit it, delete it
 
 ## 9. Play games
 
-**Games** in the sidebar has three tabs.
+**Games** in the sidebar has three tabs. The **✦** on *Trivia* marks that it uses AI: every question is written by your LLM and incurs LLM costs (the page shows the model and roughly what a question costs, typically a few cents or less). Flashcards and Match are free.
 
 **Trivia** asks a multiple-choice question written on the fly from a random section of your docs. A correct answer scores +1 and a wrong one −1, with weekly (from Monday) and all-time leaderboards.
 

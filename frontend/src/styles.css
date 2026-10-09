@@ -2570,3 +2570,30 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+/* Marks features that use AI (and so incur LLM costs). */
+
+.ai-star {
+  margin-left: 0.3rem;
+  color: var(--accent);
+  font-size: 0.9em;
+}
+
+.ai-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 42rem;
+  margin: 0 0 1.25rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ai-notice .ai-star {
+  margin: 0.1rem 0 0;
+  font-size: 15px;
+}

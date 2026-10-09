@@ -404,6 +404,14 @@ export const api = {
       body: JSON.stringify(s),
     }),
   testLlm: () => request<{ ok: true; sample: SampleQuestion }>('/api/settings/llm/test', { method: 'POST' }),
+  triviaCost: () =>
+    request<{
+      provider: string;
+      model: string;
+      inputTokens: number;
+      outputTokens: number;
+      costUsd: { low: number; high: number } | null;
+    } | null>('/api/trivia/cost'),
   currentQuestion: () => request<TriviaQuestion | null>('/api/trivia/current'),
   nextQuestion: () => request<TriviaQuestion>('/api/trivia/questions', { method: 'POST' }),
   answer: (id: string, choice: number) =>

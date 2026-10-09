@@ -236,6 +236,7 @@ Keeps people engaged with the documentation, and turns spotting stale content in
 - [x] Questions are written on the fly by an LLM from a random documentation chunk, with four options and one correct answer
 - [x] The correct answer stays on the server until the question is answered; each question can be answered once
 - [x] +1 for a correct answer, −1 for a wrong one; skipping scores nothing
+- [x] Marked as AI (✦ on its tab and Start button) with a notice of the model and the rough cost per question, since every question incurs LLM costs
 
 **7.2** As a **Domain Expert**, I want a leaderboard, so that keeping up with the docs is a friendly competition.
 - [x] All-time and weekly (Monday-based) leaderboards
