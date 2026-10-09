@@ -188,11 +188,6 @@ export function GithubBar({
           {error && <span className="down"> {error}</span>}
         </span>
         {draft && <button onClick={onDiscard}>Discard changes</button>}
-        {!draft && github.canPublish && !remoteChanged && (
-          <button disabled={refreshing} onClick={refresh}>
-            {refreshing ? 'Pulling…' : 'Pull latest'}
-          </button>
-        )}
       </div>
       {showLog && (
         <div className="github-log">

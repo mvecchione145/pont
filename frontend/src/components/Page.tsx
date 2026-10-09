@@ -91,6 +91,7 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
   // when a review suggestion is applied to the draft).
   const [editorVersion, setEditorVersion] = useState(0);
   const [publishing, setPublishing] = useState(false);
+  const [pulling, setPulling] = useState(false);
 
   // Autosave bookkeeping lives in refs so the editor's change handler never
   // goes stale. pathRef is the page's current path: a rename changes it in
@@ -459,6 +460,26 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
         </nav>
         <div className="page-bar-right">
           <span className={`save-status ${github ? (draft ? 'unsaved' : 'saved') : saveState}`}>{githubStatus ?? status}</span>
+          {github && !draft && github.canPublish && !remoteChanged && (
+            <button
+              className="bar-button"
+              disabled={pulling}
+              title="Get the latest version of the file from GitHub"
+              onClick={async () => {
+                setPulling(true);
+                try {
+                  await api.githubPull(pathRef.current);
+                  setReloadCount((n) => n + 1);
+                } catch (err) {
+                  setGithubNotice(`Couldn't pull from GitHub: ${(err as Error).message}`);
+                } finally {
+                  setPulling(false);
+                }
+              }}
+            >
+              {pulling ? 'Pulling…' : 'Pull latest'}
+            </button>
+          )}
           {github && (
             <button
               className="primary publish-button"
