@@ -168,8 +168,18 @@ export interface DeadLink {
   suggestion: { href: string; label: string; reason: string } | null;
 }
 
+export interface GithubApp {
+  source: 'env' | 'settings' | null;
+  clientId: string;
+  hasSecret: boolean;
+  secretHint: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
 export interface GithubStatus {
   configured: boolean;
+  app: GithubApp;
   connected: boolean;
   login: string | null;
   callbackUrl: string;
@@ -513,6 +523,9 @@ export const api = {
       body: JSON.stringify({ restore: versionId }),
     }),
   githubStatus: () => request<GithubStatus>('/api/github/status'),
+  saveGithubApp: (clientId: string, clientSecret?: string) =>
+    request<GithubApp>('/api/github/app', json('PUT', { clientId, clientSecret })),
+  removeGithubApp: () => request<void>('/api/github/app', { method: 'DELETE' }),
   githubConnect: () => request<{ url: string }>('/api/github/connect', { method: 'POST' }),
   githubDisconnect: () => request<void>('/api/github/connection', { method: 'DELETE' }),
   githubLink: (body: { url?: string; owner?: string; repo?: string; branch?: string; path?: string; pagePath?: string }) =>

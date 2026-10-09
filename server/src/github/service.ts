@@ -4,6 +4,7 @@ import { db } from '../clients.js';
 import { config } from '../config.js';
 import { EntryError, entryEvents, getEntry, parsePath, saveEntry, saveGuards } from '../entries.js';
 import { decrypt, encrypt } from '../secrets.js';
+import { oauthApp, publicApp, type PublicGithubApp } from './app.js';
 import {
   authorizeUrl,
   branchHead,
@@ -15,7 +16,6 @@ import {
   exchangeCode,
   getFile,
   getPull,
-  githubConfigured,
   GithubError,
   parseFileUrl,
   putFile,
@@ -37,6 +37,7 @@ const STATE_TTL_MINUTES = 15;
 
 export interface GithubStatus {
   configured: boolean;
+  app: PublicGithubApp;
   connected: boolean;
   login: string | null;
   callbackUrl: string;
@@ -45,7 +46,8 @@ export interface GithubStatus {
 export async function status(user: User): Promise<GithubStatus> {
   const { rows } = await db.query<{ login: string }>('SELECT login FROM github_accounts WHERE user_id = $1', [user.id]);
   return {
-    configured: githubConfigured(),
+    configured: Boolean(await oauthApp()),
+    app: await publicApp(),
     connected: Boolean(rows[0]),
     login: rows[0]?.login ?? null,
     callbackUrl: `${config.publicUrl}/api/github/callback`,
@@ -53,11 +55,12 @@ export async function status(user: User): Promise<GithubStatus> {
 }
 
 export async function connectUrl(user: User): Promise<string> {
-  if (!githubConfigured()) throw new GithubError('GitHub is not set up on this pont server (see Settings).', 400);
+  const app = await oauthApp();
+  if (!app) throw new GithubError('GitHub is not set up yet: add the OAuth App in Settings → Integrations.', 400);
   const state = randomBytes(24).toString('base64url');
   await db.query("DELETE FROM github_oauth_states WHERE created_at < now() - interval '1 hour'");
   await db.query('INSERT INTO github_oauth_states (state, user_id) VALUES ($1, $2)', [state, user.id]);
-  return authorizeUrl(state);
+  return authorizeUrl(app, state);
 }
 
 // GitHub redirects the browser here after sign-in. The state ties it to the
@@ -69,7 +72,9 @@ export async function finishConnect(code: string, state: string): Promise<string
     [state],
   );
   if (!rows[0]) throw new GithubError('This GitHub sign-in expired or was already used. Try Connect GitHub again.', 400);
-  const { token, scopes } = await exchangeCode(code);
+  const app = await oauthApp();
+  if (!app) throw new GithubError('GitHub is no longer set up on this pont server.', 400);
+  const { token, scopes } = await exchangeCode(app, code);
   const { login } = await currentUser(token);
   await db.query(
     `INSERT INTO github_accounts (user_id, login, token_encrypted, scopes) VALUES ($1, $2, $3, $4)

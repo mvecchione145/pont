@@ -2,9 +2,12 @@ import { Router, type ErrorRequestHandler } from 'express';
 import { config } from '../config.js';
 import { EntryError, parsePath } from '../entries.js';
 import { GithubError } from '../github/api.js';
+import { GithubAppError, removeApp, saveApp } from '../github/app.js';
 import { connectUrl, disconnect, finishConnect, linkFile, pageState, publish, pullLatest, status, unlink } from '../github/service.js';
 
 // GET    /api/github/status                       is GitHub set up, and connected for me?
+// PUT    /api/github/app { clientId, clientSecret? }  set the OAuth App (unless set by env)
+// DELETE /api/github/app                          remove it
 // POST   /api/github/connect                      → { url } to send the browser to
 // GET    /api/github/callback?code&state          GitHub's redirect back (public)
 // DELETE /api/github/connection                   disconnect my account
@@ -40,6 +43,20 @@ const pathOf = (raw: unknown) => {
 
 githubRouter.get('/status', async (req, res) => {
   res.json(await status(req.user!));
+});
+
+// The OAuth App itself (when not set by the server's environment).
+githubRouter.put('/app', async (req, res) => {
+  const { clientId, clientSecret } = (req.body ?? {}) as { clientId?: unknown; clientSecret?: unknown };
+  if (typeof clientId !== 'string' || (clientSecret !== undefined && typeof clientSecret !== 'string')) {
+    throw new GithubAppError('Expected { clientId, clientSecret? }.');
+  }
+  res.json(await saveApp({ clientId, clientSecret }, req.user!));
+});
+
+githubRouter.delete('/app', async (_req, res) => {
+  await removeApp();
+  res.status(204).end();
 });
 
 githubRouter.post('/connect', async (req, res) => {
@@ -81,7 +98,7 @@ githubRouter.delete('/pages', async (req, res) => {
 });
 
 export const githubErrors: ErrorRequestHandler = (err, _req, res, next) => {
-  if (err instanceof GithubError || err instanceof EntryError) {
+  if (err instanceof GithubError || err instanceof GithubAppError || err instanceof EntryError) {
     res.status(err.status).json({ error: err.message });
     return;
   }

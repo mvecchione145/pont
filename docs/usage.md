@@ -273,7 +273,7 @@ Deleted pages keep their history at `#/history/<page path>`, and restoring a ver
 
 Keep a repository's README (or any Markdown file in it) in pont, and send edits back as pull requests.
 
-1. An admin sets up GitHub once (see the [README](../README.md#github-docs)): a GitHub OAuth App's client ID and secret in `.env`.
+1. Set up GitHub once (see the [README](../README.md#github-docs)): register a GitHub OAuth App, then enter its client ID and secret in **Settings → Integrations → GitHub** (or in `.env`).
 2. Open **Settings → Integrations → GitHub → Connect GitHub** and approve pont on GitHub.
 3. Click **GitHub doc** in the sidebar and paste the file's link, for example `https://github.com/acme/handbook/blob/main/README.md`. It becomes the page `github/acme/handbook/README`.
 4. Edit it. The status shows **Unpublished changes**; nothing is saved until you publish (your draft survives a reload, and **Discard changes** throws it away).

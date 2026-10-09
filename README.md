@@ -97,7 +97,7 @@ Before anything is written, a preview lists every file with its destination page
 
 Link a Markdown file in a GitHub repository (a README, or anything under `docs/`) to a pont page, edit it in pont, and publish your changes as a pull request.
 
-**Setup (once, by an admin).** Register a GitHub OAuth App (*GitHub → Settings → Developer settings → OAuth Apps → New OAuth App*) with the authorization callback URL `http://localhost:3000/api/github/callback` (your pont address + `/api/github/callback`). Put its client ID and a client secret in `.env` as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, and run `docker compose up -d`. For GitHub Enterprise Server, also set `GITHUB_URL` and `GITHUB_API_URL`.
+**Setup (once).** Register a GitHub OAuth App (*GitHub → Settings → Developer settings → OAuth Apps → New OAuth App*) with the authorization callback URL `http://localhost:3000/api/github/callback` (your pont address + `/api/github/callback`). Then either enter its client ID and a client secret in **Settings → Integrations → GitHub** (the secret is stored encrypted with `PONT_SECRET_KEY`, like the LLM key), or put them in `.env` as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` and run `docker compose up -d`. The environment wins when set, and Settings then shows the app as set by the server, so an admin can lock it down (pont has no roles yet, so anyone signed in can change Settings). For GitHub Enterprise Server, also set `GITHUB_URL` and `GITHUB_API_URL`.
 
 **Connect (once per person).** **Settings → Integrations → GitHub → Connect GitHub** signs you in to GitHub and lets pont act as you on repositories you can access (scope `repo`). Your token is encrypted with `PONT_SECRET_KEY`.
 

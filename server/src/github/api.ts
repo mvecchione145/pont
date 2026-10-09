@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import type { OAuthApp } from './app.js';
 
 // The small part of GitHub's REST API pont needs: OAuth sign-in, reading a
 // file, and committing to a branch and opening or checking a pull request.
@@ -15,11 +16,9 @@ export class GithubError extends Error {
 
 const SCOPES = 'repo read:user';
 
-export const githubConfigured = () => Boolean(config.github.clientId && config.github.clientSecret);
-
-export function authorizeUrl(state: string): string {
+export function authorizeUrl(app: OAuthApp, state: string): string {
   const params = new URLSearchParams({
-    client_id: config.github.clientId,
+    client_id: app.clientId,
     redirect_uri: `${config.publicUrl}/api/github/callback`,
     scope: SCOPES,
     state,
@@ -28,13 +27,13 @@ export function authorizeUrl(state: string): string {
   return `${config.github.webUrl}/login/oauth/authorize?${params}`;
 }
 
-export async function exchangeCode(code: string): Promise<{ token: string; scopes: string }> {
+export async function exchangeCode(app: OAuthApp, code: string): Promise<{ token: string; scopes: string }> {
   const res = await fetch(`${config.github.webUrl}/login/oauth/access_token`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      client_id: config.github.clientId,
-      client_secret: config.github.clientSecret,
+      client_id: app.clientId,
+      client_secret: app.clientSecret,
       code,
       redirect_uri: `${config.publicUrl}/api/github/callback`,
     }),

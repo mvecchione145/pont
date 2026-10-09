@@ -2627,3 +2627,9 @@ select {
 .github-link-form {
   max-width: none;
 }
+
+.settings-subheading {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+}

@@ -219,7 +219,7 @@ Costs are estimated from list prices for known Claude models; other models show 
 
 ## GitHub docs
 
-People connect their own GitHub account through a GitHub OAuth App (scope `repo read:user`); the callback is `<pont URL>/api/github/callback`, matched to the person who started it by a one-time state that expires after 15 minutes. Tokens are encrypted with AES-256-GCM (`PONT_SECRET_KEY`) in Postgres and used only for that person's own actions.
+People connect their own GitHub account through a GitHub OAuth App (scope `repo read:user`), set by `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` or, failing that, entered in Settings and stored with its secret encrypted; the callback is `<pont URL>/api/github/callback`, matched to the person who started it by a one-time state that expires after 15 minutes. Tokens are encrypted with AES-256-GCM (`PONT_SECRET_KEY`) in Postgres and used only for that person's own actions.
 
 A linked page (`github_links`) records the repository, branch, file, the blob SHA last synced into pont, and the open pull request, if any. The page in MinIO always holds the file as it is on the linked branch, so search and agents see what's merged. Publishing uses the GitHub contents API: the first publish creates a `pont/<file>-<id>` branch from the branch head, commits the file (checked against its blob SHA, so a concurrent change on GitHub is refused rather than overwritten), and opens a pull request; later publishes commit to that branch while the pull request is open. Opening a linked page checks the pull request and the file: a merged pull request or a newer file on the branch is pulled into pont as a version marked *From GitHub*. A save guard refuses every other kind of save to a linked page.
 
@@ -227,7 +227,7 @@ A linked page (`github_links`) records the repository, branch, file, the blob SH
 
 - **Sign-in:** Keycloak (OIDC authorization code with PKCE). The server verifies each access token's signature, issuer, and client. There is no self-signup; an admin creates accounts.
 - **Agents:** personal API tokens (`pont_` plus 32 random bytes). pont stores only a SHA-256 hash. Every MCP request acts as the token's owner.
-- **Secrets:** the LLM API key and people's GitHub tokens are encrypted with AES-256-GCM using `PONT_SECRET_KEY` and never returned to the browser.
+- **Secrets:** the LLM API key, the GitHub OAuth App's client secret, and people's GitHub tokens are encrypted with AES-256-GCM using `PONT_SECRET_KEY` and never returned to the browser.
 - **No roles yet:** everyone who can sign in can read and edit everything, including Settings.
 - **Not production-hardened:** the defaults are development passwords and plain HTTP. Change every password in `.env`, set `PONT_SECRET_KEY`, and put pont behind TLS before exposing it. Deleting a user in Keycloak doesn't yet revoke their pont API tokens; revoke those first.
 
@@ -247,7 +247,7 @@ Copy `.env.example` to `.env` to change any of these:
 | `PONT_DB_NAME` / `PONT_DB_USER` / `PONT_DB_PASSWORD` | `pont` / `pont` / `pont-db-dev` | pont's database |
 | `KEYCLOAK_ADMIN_USER` / `KEYCLOAK_ADMIN_PASSWORD` | `admin` / `admin` | Bootstrap Keycloak admin |
 | `PONT_SECRET_KEY` | a development value | Encrypts stored secrets (the LLM key and GitHub tokens); set a long random value |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | empty (GitHub off) | A GitHub OAuth App, for linking repository docs and publishing pull requests |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | empty | A GitHub OAuth App, for linking repository docs and publishing pull requests. Optional: it can be entered in Settings → Integrations instead; when set here, it wins and can't be changed in Settings |
 | `GITHUB_URL` / `GITHUB_API_URL` | `https://github.com` / `https://api.github.com` | For GitHub Enterprise Server |
 
 Search tuning (on the `server` service): `EMBEDDING_MODEL`, `SEARCH_ALPHA_SHORT`, `SEARCH_ALPHA_LONG`, `SEARCH_MIN_SIMILARITY`; see the [README](../README.md#search).

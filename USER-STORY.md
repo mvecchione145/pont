@@ -312,7 +312,7 @@ Brings documentation that lives next to code (READMEs, `docs/` folders) into pon
 
 **10.1** As a **Domain Expert**, I want to connect my GitHub account, so that pont can read our repositories and open pull requests as me.
 - [x] **Settings → Integrations → GitHub → Connect GitHub** (OAuth; pont keeps its own login). Tokens are stored encrypted; disconnect any time
-- [x] Without a GitHub OAuth App configured, Settings explains how an admin sets one up
+- [x] The GitHub OAuth App is entered in **Settings → Integrations** (secret stored encrypted, like the LLM key) or set in the environment, which wins and locks it; Settings shows the callback URL to register
 
 **10.2** As a **Domain Expert**, I want to link a Markdown file in a repository to a pont page, so that search and agents can use it.
 - [x] Paste a GitHub file link, or enter repository, branch, and path; the file becomes a pont page that follows the branch
