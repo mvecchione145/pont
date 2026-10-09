@@ -170,7 +170,7 @@ export function ProposalsPage({ pathFilter, onChanged }: { pathFilter?: string; 
 
   return (
     <div className="proposals">
-      <h1 className="page-title static">Proposals</h1>
+      <h1 className="page-title static">Agent Proposals</h1>
       <p className="lead">
         Changes suggested by agents through MCP. Nothing changes until you approve it. Ontology suggestions from agents are
         on the <a href={href({ view: 'ontology' })}>Ontology</a> page.

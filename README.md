@@ -120,7 +120,7 @@ Agents connected through MCP can suggest fixes when they find something missing,
 - `propose_edit` takes exact find-and-replace edits (each `find` must match the page exactly once), and `propose_new_page` takes a new Markdown page. pont stores each proposal as a unified diff (`proposals/<id>.patch`) against the page version the agent saw.
 - `propose_concept`, `propose_alias`, and `propose_relation` must quote supporting passages (checked against the pages) and join the review queue on the **Ontology** page.
 
-Page proposals appear on the **Proposals** page (with a count in the sidebar and a banner on affected pages). Each shows the agent's reason and a diff, and can be **approved**, **edited and approved**, or **rejected** with a note the agent can read. If the page changed after the proposal was made, it is flagged: the diff is shown against the current version when it still applies, and can only be edited in by hand when it doesn't. Versions saved from proposals record the proposal and who proposed it, with the approver as author. Each user can have at most 25 proposals waiting for review.
+Page proposals appear on the **Agent Proposals** page (with a count in the sidebar and a banner on affected pages). Each shows the agent's reason and a diff, and can be **approved**, **edited and approved**, or **rejected** with a note the agent can read. If the page changed after the proposal was made, it is flagged: the diff is shown against the current version when it still applies, and can only be edited in by hand when it doesn't. Versions saved from proposals record the proposal and who proposed it, with the approver as author. Each user can have at most 25 proposals waiting for review.
 
 ### Ontology
 

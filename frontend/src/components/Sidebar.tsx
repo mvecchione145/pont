@@ -154,7 +154,7 @@ export function Sidebar({
             ✎
             <Badge count={pendingProposals} what="page proposals" />
           </span>
-          <span className="row-label">Proposals</span>
+          <span className="row-label">Agent Proposals</span>
         </a>
         <a
           className="row row-main"

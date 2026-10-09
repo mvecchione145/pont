@@ -204,9 +204,9 @@ Concept types are `Metric`, `Process`, `Decision`, `Policy`, `System`, `Team`, a
 
 ## 6. Review what agents propose
 
-Agents never change anything directly. Their proposals wait for you, and a red badge on **Proposals** and **Ontology** in the sidebar shows how many are waiting:
+Agents never change anything directly. Their proposals wait for you, and a red badge on **Agent Proposals** and **Ontology** in the sidebar shows how many are waiting:
 
-- **Page proposals** appear on **Proposals** (with a count in the sidebar and a banner on the affected page). Each shows the agent's reason and a diff. **Approve**, **Edit and approve**, or **Reject** with a note the agent can read through `list_my_proposals`.
+- **Page proposals** appear on **Agent Proposals** (with a count in the sidebar and a banner on the affected page). Each shows the agent's reason and a diff. **Approve**, **Edit and approve**, or **Reject** with a note the agent can read through `list_my_proposals`.
 - If the page changed since the agent looked, the proposal is marked stale: you see it against the current version if it still applies, and must edit it in by hand if it doesn't.
 - **Ontology proposals** join the review queue on the **Ontology** page (see [section 8](#8-build-the-ontology)).
 
