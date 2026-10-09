@@ -247,6 +247,11 @@ Keeps people engaged with the documentation, and turns spotting stale content in
 - [x] Anthropic (official SDK) or any OpenAI-compatible endpoint, configured once on a Settings page
 - [x] The API key is encrypted at rest and never returned to the browser
 
+**7.5** As a **Domain Expert**, I want to learn our vocabulary with flashcards and a matching game, so that the ontology sticks, not just the pages.
+- [x] Flashcards for every concept with a definition (name first or definition first, filter by type, missed cards come back, practice the missed ones)
+- [x] A match game for relationships (up to six per round, each with exactly one right answer), with a timer, mistakes, and a best time
+- [x] Both run on the approved ontology in the browser: no LLM, no cost, and no effect on the trivia leaderboard
+
 
 ## Epic 8 — Ontology *(post-MVP)*
 

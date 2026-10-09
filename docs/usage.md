@@ -10,7 +10,7 @@ This guide walks through pont from first start to everyday use, with examples. T
 - [6. Review what agents propose](#6-review-what-agents-propose)
 - [7. Review a page with AI](#7-review-a-page-with-ai)
 - [8. Build the ontology](#8-build-the-ontology)
-- [9. Play trivia](#9-play-trivia)
+- [9. Play games](#9-play-games)
 - [10. History and restore](#10-history-and-restore)
 
 ## 1. Start pont
@@ -239,11 +239,18 @@ Every concept and relationship has its own page where you can edit it, delete it
 
 **Linking text to a concept** works four ways in the editor: type `[[` and a few letters; select text and press **⌘⇧K**; select text and click the link button at the end of the toolbar; or type `/` and choose **Advanced → Link to page or concept**. The same picker lists pages and headings too, and can create a new concept on the spot.
 
-## 9. Play trivia
+## 9. Play games
+
+**Games** in the sidebar has three tabs.
 
 **Trivia** asks a multiple-choice question written on the fly from a random section of your docs. A correct answer scores +1 and a wrong one −1, with weekly (from Monday) and all-time leaderboards.
 
 After each question, **Fact check this section** opens the source page at that section, so you can fix anything that's out of date right away.
+
+**Flashcards** and **Match** use the approved ontology, run in your browser, and need no LLM:
+
+- **Flashcards** show a concept's name (or, with *Definition first*, its definition). Click the card or press **Space** to flip it, then **Got it** (→) or **Again** (←); cards you miss come back a few cards later. Filter by concept type, and when the deck is done, practice just the ones you missed.
+- **Match** shows up to six relationships, such as *Hybrid search uses …*, next to the concepts they point to. Pick one on each side to pair them; the clock and mistakes are counted, and your best time is kept in your browser. Each round is chosen so every relationship has exactly one right answer.
 
 Trivia, page review, and the ontology need an LLM. Set it up once under **Settings**:
 

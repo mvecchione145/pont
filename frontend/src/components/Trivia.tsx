@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type LeaderboardRow, type Scores, type TriviaQuestion, type TriviaResult, type User } from '../api';
 import { href, nameOf, navigate } from '../route';
+import { GameTabs } from './OntologyGames';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -141,6 +142,7 @@ export function Trivia({ user }: Props) {
   return (
     <div className="trivia-layout">
       <section className="trivia">
+        <GameTabs current="trivia" />
         <h1 className="page-title static">Trivia</h1>
         <p className="lead">
           How well do you know your docs? Questions are written on the fly from a random page.

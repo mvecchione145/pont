@@ -2341,3 +2341,232 @@ select {
 .ontology > .new-concept-form {
   margin: 0 0 1rem;
 }
+
+/* Games: tabs, flashcards, match */
+
+.game-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.game-tabs a {
+  padding: 0.45rem 0.8rem;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--fg-soft);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.game-tabs a:hover {
+  color: var(--fg);
+}
+
+.game-tabs a[aria-current='page'] {
+  color: var(--fg);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.game-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.game-controls .tabs {
+  margin: 0;
+}
+
+.game-progress {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.game-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hover);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.game-bar > div {
+  height: 100%;
+  background: var(--up);
+  transition: width 0.3s ease;
+}
+
+.flashcard {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+  height: 17rem;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  perspective: 1200px;
+  cursor: pointer;
+}
+
+.flashcard-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.45s ease;
+  transform-style: preserve-3d;
+}
+
+.flashcard.flipped .flashcard-inner {
+  transform: rotateY(180deg);
+}
+
+.flashcard-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1.5rem 2rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: 0 6px 24px rgba(15, 15, 15, 0.08);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: auto;
+  text-align: center;
+  color: var(--fg);
+}
+
+.flashcard-face.back {
+  transform: rotateY(180deg);
+}
+
+.flashcard-term {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.flashcard-term.small {
+  font-size: 20px;
+}
+
+.flashcard-definition {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.flashcard-relations {
+  margin: 0;
+  font-size: 13px;
+}
+
+.flashcard-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.game-done {
+  margin-top: 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashcard-inner {
+    transition: none;
+  }
+}
+
+.match-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.match-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.match-board ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.match-tile {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.35;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.match-tile.answer {
+  font-weight: 600;
+}
+
+.match-tile:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.match-tile.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.match-tile.matched,
+.match-tile.matched:disabled {
+  border-color: color-mix(in srgb, var(--up) 50%, transparent);
+  background: color-mix(in srgb, var(--up) 12%, transparent);
+  color: var(--fg);
+  opacity: 1;
+  cursor: default;
+}
+
+.match-tile.wrong {
+  border-color: var(--down);
+  background: color-mix(in srgb, var(--down) 12%, transparent);
+  animation: match-shake 0.35s;
+}
+
+@keyframes match-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+@media (max-width: 640px) {
+  .match-board {
+    grid-template-columns: 1fr;
+  }
+}

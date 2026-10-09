@@ -159,10 +159,10 @@ export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload, p
         <a
           className="row row-main"
           href={href({ view: 'trivia' })}
-          aria-current={route.view === 'trivia' ? 'page' : undefined}
+          aria-current={['trivia', 'flashcards', 'match'].includes(route.view) ? 'page' : undefined}
         >
           <span className="page-icon">?</span>
-          <span className="row-label">Trivia</span>
+          <span className="row-label">Games</span>
         </a>
         <a
           className="row row-main"

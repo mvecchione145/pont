@@ -127,7 +127,7 @@ Only one calculation runs at a time, and it can be cancelled. If a run fails or 
 
 ### Trivia
 
-**Trivia** (in the sidebar) asks multiple-choice questions written on the fly from a random section of your documentation: +1 for a correct answer, −1 for a wrong one. The leaderboard shows this week (from Monday) and all time. After each question, **Fact check this section** opens the page the question came from, scrolled to that section, so anyone who spots something out of date can fix it right away.
+**Trivia** (under **Games** in the sidebar) asks multiple-choice questions written on the fly from a random section of your documentation: +1 for a correct answer, −1 for a wrong one. The leaderboard shows this week (from Monday) and all time. After each question, **Fact check this section** opens the page the question came from, scrolled to that section, so anyone who spots something out of date can fix it right away.
 
 Trivia needs an LLM. Set it up once for everyone under **Settings**:
 
@@ -135,6 +135,8 @@ Trivia needs an LLM. Set it up once for everyone under **Settings**:
 - **OpenAI-compatible:** OpenAI, or any server with the same API, such as Ollama (`http://localhost:11434/v1` from your machine, or `http://host.docker.internal:11434/v1` from inside Docker), vLLM, or LiteLLM.
 
 The API key is encrypted in Postgres with `PONT_SECRET_KEY` and never sent back to the browser. **Set `PONT_SECRET_KEY` in `.env` to a long random value** (for example `openssl rand -base64 32`) before entering a real key; if you change it later, enter the API key again. There are no roles yet, so any signed-in user can change these settings.
+
+**Flashcards** and **Match** (tabs next to Trivia under **Games**) quiz people on the approved ontology: flashcards for concepts and their definitions, and a timed matching game for relationships. They run in the browser and need no LLM.
 
 ## Services
 

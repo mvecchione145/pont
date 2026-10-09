@@ -10,6 +10,7 @@ import { Trivia } from './components/Trivia';
 import { Settings } from './components/Settings';
 import { UploadDialog } from './components/UploadDialog';
 import { OntologyPage } from './components/OntologyPage';
+import { Flashcards, MatchGame } from './components/OntologyGames';
 import { ProposalsPage } from './components/ProposalsPage';
 import { HistoryPage } from './components/HistoryPage';
 import { ConceptPage, RelationPage } from './components/ConceptPage';
@@ -129,6 +130,16 @@ export default function App() {
         {route.view === 'trivia' && (
           <div className="page wide">
             <Trivia user={user} />
+          </div>
+        )}
+        {route.view === 'flashcards' && (
+          <div className="page">
+            <Flashcards />
+          </div>
+        )}
+        {route.view === 'match' && (
+          <div className="page wide">
+            <MatchGame />
           </div>
         )}
         {route.view === 'concept' && (
