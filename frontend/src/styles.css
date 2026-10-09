@@ -2698,3 +2698,19 @@ select {
   margin: 0;
   font-size: inherit;
 }
+
+/* A secondary button next to Publish: tinted and outlined so it reads as a
+   button against the page bar. */
+.pull-button {
+  padding: 0.2rem 0.8rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 6px;
+}
+
+.pull-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg));
+}

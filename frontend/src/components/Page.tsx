@@ -462,7 +462,7 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
           <span className={`save-status ${github ? (draft ? 'unsaved' : 'saved') : saveState}`}>{githubStatus ?? status}</span>
           {github && !draft && github.canPublish && !remoteChanged && (
             <button
-              className="bar-button"
+              className="pull-button"
               disabled={pulling}
               title="Get the latest version of the file from GitHub"
               onClick={async () => {
