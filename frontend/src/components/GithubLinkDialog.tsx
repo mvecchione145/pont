@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, type GithubStatus } from '../api';
-import { href } from '../route';
 
 // Links a Markdown file in a GitHub repository to a new pont page. Paste the
 // file's GitHub link, or give the repository, branch, and path.
@@ -51,7 +50,7 @@ export function GithubLinkDialog({ onClose, onLinked }: { onClose: () => void; o
         ) : !status.connected ? (
           <div className="empty-state">
             <p>{status.configured ? 'Connect your GitHub account first.' : 'GitHub is not set up on this pont server yet.'}</p>
-            <a className="button primary" href={href({ view: 'settings' })} onClick={onClose}>
+            <a className="button primary" href="#/settings?tab=integrations" onClick={onClose}>
               Open Settings
             </a>
           </div>

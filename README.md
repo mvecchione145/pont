@@ -99,7 +99,7 @@ Link a Markdown file in a GitHub repository (a README, or anything under `docs/`
 
 **Setup (once, by an admin).** Register a GitHub OAuth App (*GitHub → Settings → Developer settings → OAuth Apps → New OAuth App*) with the authorization callback URL `http://localhost:3000/api/github/callback` (your pont address + `/api/github/callback`). Put its client ID and a client secret in `.env` as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, and run `docker compose up -d`. For GitHub Enterprise Server, also set `GITHUB_URL` and `GITHUB_API_URL`.
 
-**Connect (once per person).** **Settings → GitHub → Connect GitHub** signs you in to GitHub and lets pont act as you on repositories you can access (scope `repo`). Your token is encrypted with `PONT_SECRET_KEY`.
+**Connect (once per person).** **Settings → Integrations → GitHub → Connect GitHub** signs you in to GitHub and lets pont act as you on repositories you can access (scope `repo`). Your token is encrypted with `PONT_SECRET_KEY`.
 
 **Link a file.** **GitHub doc** in the sidebar: paste the file's GitHub link (for example `https://github.com/org/app/blob/main/README.md`) or enter the repository, branch, and path. The file becomes a page (by default `github/<owner>/<repo>/<file>`) that search and agents can read.
 

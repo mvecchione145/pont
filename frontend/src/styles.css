@@ -2620,8 +2620,8 @@ select {
   line-height: 1.6;
 }
 
-.github-settings {
-  margin-top: 2.5rem;
+.github-settings .section-heading {
+  margin-top: 0;
 }
 
 .github-link-form {

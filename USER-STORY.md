@@ -311,7 +311,7 @@ Helps people keep each page clear, consistent with the rest of the documentation
 Brings documentation that lives next to code (READMEs, `docs/` folders) into pont without moving it, and sends edits back through the team's usual review.
 
 **10.1** As a **Domain Expert**, I want to connect my GitHub account, so that pont can read our repositories and open pull requests as me.
-- [x] **Settings → GitHub → Connect GitHub** (OAuth; pont keeps its own login). Tokens are stored encrypted; disconnect any time
+- [x] **Settings → Integrations → GitHub → Connect GitHub** (OAuth; pont keeps its own login). Tokens are stored encrypted; disconnect any time
 - [x] Without a GitHub OAuth App configured, Settings explains how an admin sets one up
 
 **10.2** As a **Domain Expert**, I want to link a Markdown file in a repository to a pont page, so that search and agents can use it.

@@ -18,7 +18,7 @@ import { connectUrl, disconnect, finishConnect, linkFile, pageState, publish, pu
 // login. The one-time "state" identifies who started it.
 export const githubCallbackRouter = Router();
 githubCallbackRouter.get('/callback', async (req, res) => {
-  const back = (result: string) => res.redirect(`${config.publicUrl}/#/settings?github=${encodeURIComponent(result)}`);
+  const back = (result: string) => res.redirect(`${config.publicUrl}/#/settings?tab=integrations&github=${encodeURIComponent(result)}`);
   const { code, state, error } = req.query;
   if (typeof error === 'string') return back('cancelled');
   if (typeof code !== 'string' || typeof state !== 'string') return back('failed');

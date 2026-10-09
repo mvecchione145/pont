@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type GithubStatus } from '../api';
 
-// Settings → GitHub: connect your account so you can link repository docs to
+// Settings → Integrations → GitHub: connect your account so you can link repository docs to
 // pont pages and publish changes as pull requests.
 export function GithubSettings() {
   const [status, setStatus] = useState<GithubStatus | null>(null);

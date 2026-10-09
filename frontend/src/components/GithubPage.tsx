@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { api, type GithubPage, type GithubPublishResult } from '../api';
-import { href } from '../route';
 
 // The parts of a page linked to a file on GitHub: the bar saying where it
 // comes from (and its pull request), and the Publish dialog.
@@ -51,7 +50,7 @@ export function GithubBar({
         {!github.canPublish && (
           <>
             {' '}
-            <a href={href({ view: 'settings' })}>Connect GitHub</a> to publish.
+            <a href="#/settings?tab=integrations">Connect GitHub</a> to publish.
           </>
         )}
         {error && <span className="down"> {error}</span>}

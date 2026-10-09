@@ -7,7 +7,45 @@ const DEFAULT_MODEL: Record<Provider, string> = {
   'openai-compatible': '',
 };
 
+type Tab = 'llm' | 'integrations';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'llm', label: 'LLM' },
+  { id: 'integrations', label: 'Integrations' },
+];
+
+// The tab is in the URL (#/settings?tab=integrations), so links and GitHub's
+// sign-in redirect open the right one.
+function tabFromHash(): Tab {
+  const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+  return params.get('tab') === 'integrations' || params.has('github') ? 'integrations' : 'llm';
+}
+
 export function Settings() {
+  const [tab, setTab] = useState<Tab>(tabFromHash);
+  useEffect(() => {
+    const onHash = () => setTab(tabFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  return (
+    <section className="settings">
+      <h1 className="page-title static">Settings</h1>
+      <nav className="game-tabs" aria-label="Settings">
+        {TABS.map((t) => (
+          <a key={t.id} href={`#/settings?tab=${t.id}`} aria-current={tab === t.id ? 'page' : undefined}>
+            {t.label}
+          </a>
+        ))}
+      </nav>
+      {tab === 'llm' ? <LlmSettingsTab /> : <GithubSettings />}
+    </section>
+  );
+}
+
+// Settings → LLM: the model behind trivia, page review, and the ontology.
+function LlmSettingsTab() {
   const [saved, setSaved] = useState<LlmSettings | null>(null);
   const [provider, setProvider] = useState<Provider>('anthropic');
   const [model, setModel] = useState(DEFAULT_MODEL.anthropic);
@@ -86,9 +124,7 @@ export function Settings() {
     (provider !== saved.provider || model !== saved.model || baseUrl !== saved.baseUrl || apiKey !== '');
 
   return (
-    <section className="settings">
-      <h1 className="page-title static">Settings</h1>
-      <p className="lead">Trivia uses an LLM to write questions from your pages. Set it up once for everyone.</p>
+    <>
 
       <form className="settings-form" onSubmit={save}>
         <fieldset>
@@ -186,7 +222,6 @@ export function Settings() {
           <p className="muted">{sample.explanation}</p>
         </div>
       )}
-      <GithubSettings />
-    </section>
+    </>
   );
 }
