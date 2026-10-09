@@ -20,14 +20,24 @@ export default function App() {
   const [entries, setEntries] = useState<EntrySummary[]>([]);
   // Pending agent proposals per page path (sidebar badge, page banners).
   const [proposalCounts, setProposalCounts] = useState<Record<string, number>>({});
+  // Ontology recommendations waiting for review (sidebar badge).
+  const [pendingRecommendations, setPendingRecommendations] = useState(0);
   const refreshProposalCounts = useCallback(() => {
     api.proposalCounts().then(setProposalCounts, () => undefined);
+    api.pendingRecommendationCount().then((r) => setPendingRecommendations(r.pending), () => undefined);
   }, []);
+  // Badges refresh every 30 seconds, when the window regains focus, and on
+  // every navigation (so reviewing items clears them promptly).
   useEffect(() => {
     refreshProposalCounts();
-    const timer = window.setInterval(refreshProposalCounts, 60_000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(refreshProposalCounts, 30_000);
+    window.addEventListener('focus', refreshProposalCounts);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshProposalCounts);
+    };
   }, [refreshProposalCounts]);
+  useEffect(refreshProposalCounts, [route, refreshProposalCounts]);
   const [justCreated, setJustCreated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -106,6 +116,7 @@ export default function App() {
         onSearch={() => setSearchOpen(true)}
         onUpload={() => setUploadOpen(true)}
         pendingProposals={Object.values(proposalCounts).reduce((a, b) => a + b, 0)}
+        pendingRecommendations={pendingRecommendations}
       />
       <main className="main">
         {error && (

@@ -1488,17 +1488,52 @@ button.row-main.row:hover {
 
 /* Proposals */
 
-.count-badge {
-  margin-left: auto;
-  min-width: 18px;
-  padding: 0 0.35rem;
+.page-icon.with-badge {
+  position: relative;
+}
+
+/* iOS-style notification badge: red, white bold number, on the icon's
+   top-right corner, a circle that stretches into a pill for 2+ digits. */
+.notification-badge {
+  position: absolute;
+  top: -10px;
+  left: 6px;
+  box-sizing: border-box;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-fg);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
+  border: 1.5px solid var(--sidebar);
+  background: #ff3b30;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 14px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  animation: badge-pop 0.25s ease-out;
+}
+
+@keyframes badge-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-badge {
+    animation: none;
+  }
 }
 
 .proposals .tabs,

@@ -1,6 +1,6 @@
 import { Router, type ErrorRequestHandler } from 'express';
 import { ApplyError, approve, decideMany, reject } from '../ontology/apply.js';
-import { listRecommendations } from '../ontology/recommendations.js';
+import { listRecommendations, pendingRecommendationCount } from '../ontology/recommendations.js';
 import { cancelRun, getRun, listRuns, previewChanges, RunError, startRun } from '../ontology/runs.js';
 import { OntologyConflictError, readOntology } from '../ontology/store.js';
 import {
@@ -94,6 +94,11 @@ ontologyRouter.get('/runs/:id', async (req, res) => {
 
 ontologyRouter.post('/runs/:id/cancel', async (req, res) => {
   res.json(await cancelRun(id(req.params.id)));
+});
+
+// For the sidebar's badge.
+ontologyRouter.get('/recommendations/count', async (_req, res) => {
+  res.json({ pending: await pendingRecommendationCount() });
 });
 
 ontologyRouter.get('/recommendations', async (req, res) => {

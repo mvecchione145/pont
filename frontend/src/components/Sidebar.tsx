@@ -96,11 +96,23 @@ interface Props {
   onSearch: () => void;
   onUpload: () => void;
   pendingProposals: number;
+  // Ontology recommendations waiting for review.
+  pendingRecommendations: number;
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
-export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload, pendingProposals }: Props) {
+// A red, iOS-style notification badge on an icon's corner.
+function Badge({ count, what }: { count: number; what: string }) {
+  if (count <= 0) return null;
+  return (
+    <span className="notification-badge" role="status" aria-label={`${count} ${what} waiting for review`}>
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload, pendingProposals, pendingRecommendations }: Props) {
   const selected = route.view === 'page' ? route.path : undefined;
   return (
     <aside className="sidebar">
@@ -127,20 +139,21 @@ export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload, p
           href={href({ view: 'proposals' })}
           aria-current={route.view === 'proposals' ? 'page' : undefined}
         >
-          <span className="page-icon">✎</span>
+          <span className="page-icon with-badge">
+            ✎
+            <Badge count={pendingProposals} what="page proposals" />
+          </span>
           <span className="row-label">Proposals</span>
-          {pendingProposals > 0 && (
-            <span className="count-badge" title={`${pendingProposals} waiting for review`}>
-              {pendingProposals}
-            </span>
-          )}
         </a>
         <a
           className="row row-main"
           href={href({ view: 'ontology' })}
           aria-current={route.view === 'ontology' ? 'page' : undefined}
         >
-          <span className="page-icon">◇</span>
+          <span className="page-icon with-badge">
+            ◇
+            <Badge count={pendingRecommendations} what="ontology recommendations" />
+          </span>
           <span className="row-label">Ontology</span>
         </a>
         <a

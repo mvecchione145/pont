@@ -441,6 +441,7 @@ export const api = {
   ontologyRun: (id: string) => request<OntologyRun>(`/api/ontology/runs/${id}`),
   startOntologyRun: () => request<OntologyRun>('/api/ontology/runs', { method: 'POST' }),
   cancelOntologyRun: (id: string) => request<OntologyRun>(`/api/ontology/runs/${id}/cancel`, { method: 'POST' }),
+  pendingRecommendationCount: () => request<{ pending: number }>('/api/ontology/recommendations/count'),
   ontologyRecommendations: () => request<OntologyRecommendation[]>('/api/ontology/recommendations'),
   approveRecommendation: (id: string) =>
     request<{ status: 'approved' | 'failed'; message: string }>(`/api/ontology/recommendations/${id}/approve`, {

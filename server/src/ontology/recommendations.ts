@@ -137,6 +137,11 @@ export async function listRecommendations(status: 'pending' | 'decided', limit =
   return rows.map(toStored);
 }
 
+export async function pendingRecommendationCount(): Promise<number> {
+  const { rows } = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM ontology_recommendations WHERE status = 'pending'");
+  return rows[0].n;
+}
+
 export async function getRecommendation(id: string): Promise<StoredRecommendation | null> {
   const { rows } = await db.query<Row>('SELECT * FROM ontology_recommendations WHERE id = $1', [id]);
   return rows[0] ? toStored(rows[0]) : null;

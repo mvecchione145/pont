@@ -208,7 +208,7 @@ Each proposal is a unified diff (`git diff` format) stored next to the knowledge
 - [x] Agents can check what happened to their proposals, including reviewers' notes; each user has at most 25 pending
 
 **5.2** As a **Domain Expert**, I want to review agent proposals and approve, edit, or reject them, so that humans stay in control of what counts as true.
-- [x] Pending proposals appear in a review queue (with a count in the sidebar and a banner on affected pages)
+- [x] Pending proposals appear in a review queue (with a red, iOS-style count badge on Proposals and Ontology in the sidebar, and a banner on affected pages)
 - [x] Each proposal shows a rendered diff and the agent's reasoning
 - [x] I can approve (apply the patch and write the file), edit before approving, or reject with a note
 - [x] If the target page has changed since the patch was created, the proposal is flagged as stale: shown against the current version if it still applies, and blocked from approval as-is if it doesn't
