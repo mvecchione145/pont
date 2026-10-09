@@ -306,6 +306,23 @@ Helps people keep each page clear, consistent with the rest of the documentation
 
 ---
 
+## Epic 10 — Docs in GitHub repositories *(post-MVP)*
+
+Brings documentation that lives next to code (READMEs, `docs/` folders) into pont without moving it, and sends edits back through the team's usual review.
+
+**10.1** As a **Domain Expert**, I want to connect my GitHub account, so that pont can read our repositories and open pull requests as me.
+- [x] **Settings → GitHub → Connect GitHub** (OAuth; pont keeps its own login). Tokens are stored encrypted; disconnect any time
+- [x] Without a GitHub OAuth App configured, Settings explains how an admin sets one up
+
+**10.2** As a **Domain Expert**, I want to link a Markdown file in a repository to a pont page, so that search and agents can use it.
+- [x] Paste a GitHub file link, or enter repository, branch, and path; the file becomes a pont page that follows the branch
+- [x] A merged pull request or a change on the branch is pulled into pont when the page is opened (or with **Pull latest**)
+
+**10.3** As a **Domain Expert**, I want to edit a linked page and publish my changes as a pull request, so that docs in GitHub go through normal review.
+- [x] Linked pages don't autosave: edits are a draft (kept across reloads) until **Publish**
+- [x] The first publish opens a pull request from a new branch, as me; later publishes add commits to the same open pull request
+- [x] Other kinds of saves (agent proposals, review suggestions, link fixes) are refused for linked pages, so pont never drifts from the repository
+
 ## Decisions made along the way
 
 - **Copy Onyx's ideas, not its code.** pont reimplements hybrid search and chunking in TypeScript rather than depending on Onyx.
@@ -313,6 +330,7 @@ Helps people keep each page clear, consistent with the rest of the documentation
 - **A Notion-style editor** (Milkdown Crepe) over a plain Markdown textarea, because writing should feel seamless.
 - **Strands Decider 2B is shelved.** The idea was to run it in the Compose stack for cheap ontology decisions; its large model download and unclear role in the workflow outweighed the benefit for now.
 - **Ontology work is an agent harness, started by hand.** Documentation is free text, so finding concepts is open-ended work suited to agents, but runs only happen when a person clicks Calculate.
+- **GitHub docs stay in GitHub.** People connect their own GitHub account (pont keeps its Keycloak login), link single files rather than whole repositories, and only linked pages switch from autosave to Publish; one pull request per page collects every publish until it's merged.
 - **Agents propose, people approve:** page edits, new pages, and ontology changes from agents all go through review queues; nothing is auto-applied.
 
 ## Open questions and known gaps

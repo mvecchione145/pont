@@ -22,6 +22,8 @@ import { startPageLinkIndex } from './pagelinks.js';
 import { linkErrors, linksRouter } from './routes/links.js';
 import { startMoveTracking } from './deadlinks.js';
 import { startLinkUpdates } from './linkupdates.js';
+import { githubCallbackRouter, githubErrors, githubRouter } from './routes/github.js';
+import { startGithubLinks } from './github/service.js';
 import { startIndexer } from './search/index.js';
 
 const app = express();
@@ -42,6 +44,9 @@ app.get('/api/config', (_req, res) => {
 // Keycloak login, so it sits outside the /api login check.
 app.use('/mcp', mcpRouter);
 
+// GitHub's OAuth redirect back to pont (identified by its one-time state).
+app.use('/api/github', githubCallbackRouter);
+
 // Everything registered below this line requires a logged-in user.
 app.use('/api', requireUser);
 
@@ -60,6 +65,7 @@ app.use('/api/proposals', proposalsRouter, proposalErrors);
 app.use('/api/history', historyRouter, historyErrors);
 app.use('/api/reviews', reviewsRouter, reviewErrors);
 app.use('/api/links', linksRouter, linkErrors);
+app.use('/api/github', githubRouter, githubErrors);
 
 await redis.connect();
 await migrate();
@@ -77,6 +83,7 @@ void startLinkIndex();
 void startPageLinkIndex();
 void startMoveTracking();
 startLinkUpdates();
+startGithubLinks();
 
 async function shutdown() {
   server.close();

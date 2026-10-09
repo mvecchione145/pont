@@ -148,6 +148,37 @@ export async function migrate(): Promise<void> {
     -- Where pages were moved or renamed to, so links to an old path can be
     -- pointed at the new one. Moves made before this table existed are
     -- backfilled once from the "moved-from" metadata in page history.
+    -- GitHub: each user's connected account (token encrypted with
+    -- PONT_SECRET_KEY), pending OAuth sign-ins, and pages linked to files in
+    -- repositories, with the pull request their published edits are in.
+    CREATE TABLE IF NOT EXISTS github_accounts (
+      user_id         text PRIMARY KEY,
+      login           text NOT NULL,
+      token_encrypted text NOT NULL,
+      scopes          text NOT NULL DEFAULT '',
+      connected_at    timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS github_oauth_states (
+      state      text PRIMARY KEY,
+      user_id    text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS github_links (
+      page_path text PRIMARY KEY,
+      owner     text NOT NULL,
+      repo      text NOT NULL,
+      branch    text NOT NULL,
+      file_path text NOT NULL,
+      -- Blob SHA of the file on the branch, as last synced into pont.
+      base_sha  text NOT NULL,
+      pr_number integer,
+      pr_branch text,
+      pr_url    text,
+      linked_by text NOT NULL,
+      linked_at timestamptz NOT NULL DEFAULT now(),
+      synced_at timestamptz NOT NULL DEFAULT now()
+    );
+
     CREATE TABLE IF NOT EXISTS page_moves (
       from_path text NOT NULL,
       to_path   text NOT NULL,

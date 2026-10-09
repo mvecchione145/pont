@@ -95,6 +95,7 @@ interface Props {
   onNewPage: (folder: string) => void;
   onSearch: () => void;
   onUpload: () => void;
+  onLinkGithub: () => void;
   pendingProposals: number;
   // Ontology recommendations waiting for review.
   pendingRecommendations: number;
@@ -112,7 +113,17 @@ function Badge({ count, what }: { count: number; what: string }) {
   );
 }
 
-export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload, pendingProposals, pendingRecommendations }: Props) {
+export function Sidebar({
+  user,
+  entries,
+  route,
+  onNewPage,
+  onSearch,
+  onUpload,
+  onLinkGithub,
+  pendingProposals,
+  pendingRecommendations,
+}: Props) {
   const selected = route.view === 'page' ? route.path : undefined;
   return (
     <aside className="sidebar">
@@ -204,6 +215,10 @@ export function Sidebar({ user, entries, route, onNewPage, onSearch, onUpload, p
         <button className="row row-main" onClick={onUpload}>
           <span className="page-icon">⇪</span>
           <span className="row-label">Upload</span>
+        </button>
+        <button className="row row-main" onClick={onLinkGithub}>
+          <span className="page-icon">⎇</span>
+          <span className="row-label">GitHub doc</span>
         </button>
         <button className="row row-main" onClick={() => logout()}>
           <span className="page-icon">⇥</span>

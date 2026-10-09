@@ -44,9 +44,15 @@ export interface Entry {
 // server (the search indexer) can follow changes without coupling to storage.
 export const entryEvents = new EventEmitter<{
   saved: [path: string];
-  deleted: [path: string];
+  // "moving": the delete is half of a move (a "moved" event follows).
+  deleted: [path: string, moving: boolean];
   moved: [from: string, to: string, user: User];
 }>();
+
+// Checks run before any save; one can refuse it by throwing (an EntryError).
+// Pages linked to GitHub use this to refuse ordinary saves: their changes go
+// through Publish and a pull request instead.
+export const saveGuards: ((path: string, metadata: Record<string, string>) => Promise<void>)[] = [];
 
 export class EntryError extends Error {
   constructor(
@@ -145,6 +151,7 @@ export async function saveEntry(
   // agent proposal it came from.
   extraMetadata: Record<string, string> = {},
 ): Promise<Entry> {
+  for (const guard of saveGuards) await guard(path, extraMetadata);
   const current = await currentVersion(path);
   if (baseVersionId === null && current !== null) {
     throw new EntryError(409, `An entry already exists at "${path}"`);
@@ -179,12 +186,12 @@ export async function saveEntry(
 }
 
 // With versioning on, a delete adds a delete marker: earlier versions are kept.
-export async function deleteEntry(path: string): Promise<void> {
+export async function deleteEntry(path: string, moving = false): Promise<void> {
   if ((await currentVersion(path)) === null) {
     throw new EntryError(404, `No entry at "${path}"`);
   }
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: keyFor(path) }));
-  entryEvents.emit('deleted', path);
+  entryEvents.emit('deleted', path, moving);
 }
 
 // Creates an empty entry named "Untitled", "Untitled 2", ... inside folder,
@@ -215,7 +222,7 @@ export async function moveEntry(
   const { content } = rewritePageLinks(source.content, from, to);
   // The new path's history links back to where it came from.
   const moved = await saveEntry(to, content, null, user, { 'moved-from': encodeURIComponent(from) });
-  await deleteEntry(from);
+  await deleteEntry(from, true);
   // Other pages' links to it are updated by linkupdates.ts.
   entryEvents.emit('moved', from, to, user);
   return moved;

@@ -8,9 +8,10 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
-import { api, ApiError, type Entry } from '../api';
+import { api, ApiError, type Entry, type GithubPage } from '../api';
 import { folderOf, href, nameOf, navigate } from '../route';
 import { ReviewPanel } from './ReviewPanel';
+import { GithubBar, PublishDialog, draftKey } from './GithubPage';
 // The editor (with CodeMirror for code blocks) is large, so load it on demand.
 const Editor = lazy(() => import('./Editor').then((m) => ({ default: m.Editor })));
 type EditorHandle = import('./Editor').EditorHandle;
@@ -69,6 +70,14 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [factCheck, setFactCheck] = useState(arrivedToCheck);
   const [reviewing, setReviewing] = useState(false);
+  // Set for pages linked to a file on GitHub: no autosave; edits are a draft
+  // until published as a pull request.
+  const [github, setGithub] = useState<GithubPage | null>(null);
+  const githubRef = useRef<GithubPage | null>(null);
+  githubRef.current = github;
+  const [draft, setDraft] = useState(false);
+  const [restoredDraft, setRestoredDraft] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   // Autosave bookkeeping lives in refs so the editor's change handler never
   // goes stale. pathRef is the page's current path: a rename changes it in
@@ -88,15 +97,39 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
     let cancelled = false;
     setEntry(null);
     setLoadError(null);
-    api.getEntry(pathRef.current).then(
-      (e) => {
+    const at = pathRef.current;
+    Promise.all([api.getEntry(at), api.githubPage(at).catch(() => null)]).then(
+      ([e, gh]) => {
         if (cancelled) return;
         version.current = e.versionId ?? null;
-        latest.current = saved.current = e.content;
         blocked.current = false;
         setSaveState('saved');
         setSaveError(null);
-        setEntry(e);
+        setGithub(gh);
+        if (gh) {
+          // Start from the GitHub version (or the open pull request's), plus
+          // any unpublished draft kept in this browser.
+          let content = gh.content;
+          let restored = false;
+          try {
+            const kept = localStorage.getItem(draftKey(at));
+            if (kept !== null && kept !== gh.content) {
+              content = kept;
+              restored = true;
+            }
+          } catch {
+            // No storage: no restored draft.
+          }
+          saved.current = gh.content;
+          latest.current = content;
+          setDraft(restored);
+          setRestoredDraft(restored);
+          setEntry({ ...e, content });
+        } else {
+          latest.current = saved.current = e.content;
+          setDraft(false);
+          setEntry(e);
+        }
       },
       (err: Error) => !cancelled && setLoadError(err.message),
     );
@@ -107,6 +140,8 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
 
   const flush = useCallback(async (): Promise<void> => {
     window.clearTimeout(timer.current);
+    // GitHub-linked pages never autosave: Publish sends their changes.
+    if (githubRef.current) return;
     // Saves wait for any rename, then go to the page's new path.
     while (inFlight.current || moveInFlight.current) {
       await (inFlight.current ?? moveInFlight.current);
@@ -147,6 +182,17 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
   const onEdit = useCallback(
     (markdown: string) => {
       latest.current = markdown;
+      if (githubRef.current) {
+        const dirty = markdown !== saved.current;
+        setDraft(dirty);
+        try {
+          if (dirty) localStorage.setItem(draftKey(pathRef.current), markdown);
+          else localStorage.removeItem(draftKey(pathRef.current));
+        } catch {
+          // The draft just isn't kept across reloads.
+        }
+        return;
+      }
       if (blocked.current) return;
       setSaveState('unsaved');
       window.clearTimeout(timer.current);
@@ -225,6 +271,15 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
       try {
         const moved = await api.moveEntry(from, target, version.current);
         pathRef.current = moved.path;
+        try {
+          const kept = localStorage.getItem(draftKey(from));
+          if (kept !== null) {
+            localStorage.setItem(draftKey(moved.path), kept);
+            localStorage.removeItem(draftKey(from));
+          }
+        } catch {
+          // nothing kept
+        }
         version.current = moved.versionId ?? null;
         setTitleError(null);
         // The move rewrote the page's links to itself (e.g. to its own
@@ -328,6 +383,13 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
     conflict: 'Not saved',
     error: 'Not saved',
   }[saveState];
+  const githubStatus = github
+    ? draft
+      ? 'Unpublished changes'
+      : github.pr
+        ? `In pull request #${github.pr.number}`
+        : 'Up to date with GitHub'
+    : null;
 
   return (
     <div className={`page-shell ${reviewing ? 'with-panel' : ''}`}>
@@ -342,7 +404,25 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
           <span className="current">{nameOf(path)}</span>
         </nav>
         <div className="page-bar-right">
-          <span className={`save-status ${saveState}`}>{status}</span>
+          <span className={`save-status ${github ? (draft ? 'unsaved' : 'saved') : saveState}`}>{githubStatus ?? status}</span>
+          {github && (
+            <button
+              className="primary publish-button"
+              disabled={!draft || !github.canPublish}
+              title={
+                !github.canPublish
+                  ? 'Connect GitHub in Settings to publish'
+                  : !draft
+                    ? 'No unpublished changes'
+                    : github.pr
+                      ? `Add your changes to pull request #${github.pr.number}`
+                      : 'Open a pull request with your changes'
+              }
+              onClick={() => setPublishing(true)}
+            >
+              Publish
+            </button>
+          )}
           <button
             className={`bar-button review-button ${reviewing ? 'active' : ''}`}
             title="Suggestions to make this page clearer, conflicts with other pages, missing ontology links, and dead links"
@@ -404,6 +484,45 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
         </div>
       </header>
 
+      {github && (
+        <GithubBar
+          github={github}
+          draft={draft}
+          restoredDraft={restoredDraft}
+          onDiscard={() => {
+            try {
+              localStorage.removeItem(draftKey(pathRef.current));
+            } catch {
+              // nothing kept
+            }
+            setReloadCount((n) => n + 1);
+          }}
+          onPull={async () => {
+            await api.githubPull(pathRef.current);
+            setReloadCount((n) => n + 1);
+          }}
+        />
+      )}
+      {publishing && github && (
+        <PublishDialog
+          path={pathRef.current}
+          github={github}
+          content={latest.current}
+          onClose={() => setPublishing(false)}
+          onPublished={(result) => {
+            setPublishing(false);
+            saved.current = latest.current;
+            setDraft(false);
+            setRestoredDraft(false);
+            try {
+              localStorage.removeItem(draftKey(pathRef.current));
+            } catch {
+              // nothing kept
+            }
+            setGithub({ ...github, pr: result.pr, synced: null });
+          }}
+        />
+      )}
       {pendingProposals > 0 && (
         <div className="banner proposals-banner">
           <span>

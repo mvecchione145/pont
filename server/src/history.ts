@@ -36,6 +36,8 @@ export interface Version {
   linkFix?: boolean;
   // The links in this version were updated because that page moved.
   linksMovedFrom?: string;
+  // Pulled in from GitHub (the page is linked to a file in a repository).
+  fromGithub?: boolean;
 }
 
 const decode = (value?: string) => (value ? decodeURIComponent(value) : undefined);
@@ -51,6 +53,7 @@ function provenance(meta: Record<string, string> | undefined): Partial<Version> 
     reviewId: meta['review-id'],
     linkFix: meta['link-fix'] === '1' || undefined,
     linksMovedFrom: decode(meta['links-moved-from']),
+    fromGithub: meta['github-sync'] === '1' || undefined,
   };
 }
 

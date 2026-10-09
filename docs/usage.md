@@ -12,6 +12,7 @@ This guide walks through pont from first start to everyday use, with examples. T
 - [8. Build the ontology](#8-build-the-ontology)
 - [9. Play games](#9-play-games)
 - [10. History and restore](#10-history-and-restore)
+- [11. Docs in GitHub repositories](#11-docs-in-github-repositories)
 
 ## 1. Start pont
 
@@ -267,3 +268,16 @@ The API key is encrypted with `PONT_SECRET_KEY` and never sent back to the brows
 Every save is a new version; nothing is ever overwritten. Open **⋯ → Page history** on any page to see each version, who wrote it, where it came from (an edit, an agent proposal, a review, a restore, or a move), and what it changed. **Restore this version** saves that content as the newest version.
 
 Deleted pages keep their history at `#/history/<page path>`, and restoring a version brings the page back.
+
+## 11. Docs in GitHub repositories
+
+Keep a repository's README (or any Markdown file in it) in pont, and send edits back as pull requests.
+
+1. An admin sets up GitHub once (see the [README](../README.md#github-docs)): a GitHub OAuth App's client ID and secret in `.env`.
+2. Open **Settings → GitHub → Connect GitHub** and approve pont on GitHub.
+3. Click **GitHub doc** in the sidebar and paste the file's link, for example `https://github.com/acme/handbook/blob/main/README.md`. It becomes the page `github/acme/handbook/README`.
+4. Edit it. The status shows **Unpublished changes**; nothing is saved until you publish (your draft survives a reload, and **Discard changes** throws it away).
+5. Click **Publish**, give the pull request a title (and a description), and **Open pull request**. pont commits to a new `pont/readme-…` branch and opens the pull request as you. The page now shows *In pull request #1*.
+6. More edits? Publish again: they're added to the same pull request.
+7. Once the pull request is merged on GitHub, the next time the page opens pont shows the merged version (*The pull request was merged*), and search and agents see it.
+

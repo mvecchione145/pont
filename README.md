@@ -93,6 +93,20 @@ Click **Upload** in the sidebar, then drop files or whole folders (or use **Choo
 
 Before anything is written, a preview lists every file with its destination page. Files that would replace an existing page are **skipped unless you tick "Replace existing"**; replaced pages keep their previous versions in history. Hidden files (such as `.DS_Store` and `.git/`) and unsupported types are skipped. Limits: 10 MB per file, 50 MB and 500 files per upload. Imported pages are searchable and available to agents a few seconds later.
 
+### GitHub docs
+
+Link a Markdown file in a GitHub repository (a README, or anything under `docs/`) to a pont page, edit it in pont, and publish your changes as a pull request.
+
+**Setup (once, by an admin).** Register a GitHub OAuth App (*GitHub → Settings → Developer settings → OAuth Apps → New OAuth App*) with the authorization callback URL `http://localhost:3000/api/github/callback` (your pont address + `/api/github/callback`). Put its client ID and a client secret in `.env` as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, and run `docker compose up -d`. For GitHub Enterprise Server, also set `GITHUB_URL` and `GITHUB_API_URL`.
+
+**Connect (once per person).** **Settings → GitHub → Connect GitHub** signs you in to GitHub and lets pont act as you on repositories you can access (scope `repo`). Your token is encrypted with `PONT_SECRET_KEY`.
+
+**Link a file.** **GitHub doc** in the sidebar: paste the file's GitHub link (for example `https://github.com/org/app/blob/main/README.md`) or enter the repository, branch, and path. The file becomes a page (by default `github/<owner>/<repo>/<file>`) that search and agents can read.
+
+**Edit and publish.** Linked pages **don't autosave**: edits are a draft (kept in your browser, so a reload doesn't lose them) until you click **Publish**. The first publish commits your change to a new `pont/…` branch and opens a pull request into the linked branch, as you; later publishes add commits to the same pull request while it's open, and the editor shows the pull request's version meanwhile. When the pull request is merged (or the file changes on the branch), pont pulls the new content the next time someone opens the page, or right away with **Pull latest**. Pages show *From GitHub* versions in their history.
+
+Linked pages can only change through Publish: other ways of saving (agent proposals, review suggestions, link fixes) are refused for them, so pont never drifts from the repository. Branches whose names contain `/` need the repository, branch, and file entered separately rather than a pasted link.
+
 ### Page history
 
 Every save is kept: MinIO bucket versioning stores each version, and deletes only add a delete marker. Open a page's **⋯ menu → Page history** to see every version with its author and where it came from (an agent proposal, a restore, or a move), the changes each version made, and the full page as it was. **Restore this version** saves that content as the newest version, so nothing is overwritten.

@@ -2597,3 +2597,33 @@ select {
   margin: 0.1rem 0 0;
   font-size: 15px;
 }
+
+/* GitHub-linked pages */
+
+.github-bar {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.github-mark {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.publish-button {
+  padding: 0.2rem 0.8rem;
+  font-size: 13px;
+}
+
+.github-setup ol {
+  padding-left: 1.2rem;
+  line-height: 1.6;
+}
+
+.github-settings {
+  margin-top: 2.5rem;
+}
+
+.github-link-form {
+  max-width: none;
+}

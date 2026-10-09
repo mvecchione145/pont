@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, type LlmSettings, type Provider, type SampleQuestion } from '../api';
+import { GithubSettings } from './GithubSettings';
 
 const DEFAULT_MODEL: Record<Provider, string> = {
   anthropic: 'claude-opus-5-5',
@@ -185,6 +186,7 @@ export function Settings() {
           <p className="muted">{sample.explanation}</p>
         </div>
       )}
+      <GithubSettings />
     </section>
   );
 }

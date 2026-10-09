@@ -168,6 +168,32 @@ export interface DeadLink {
   suggestion: { href: string; label: string; reason: string } | null;
 }
 
+export interface GithubStatus {
+  configured: boolean;
+  connected: boolean;
+  login: string | null;
+  callbackUrl: string;
+}
+
+// A page linked to a file in a GitHub repository (see server/src/github/).
+export interface GithubPage {
+  owner: string;
+  repo: string;
+  branch: string;
+  filePath: string;
+  fileUrl: string;
+  content: string;
+  pr: { number: number; url: string; branch: string } | null;
+  canPublish: boolean;
+  synced: 'merged' | 'updated' | null;
+}
+
+export interface GithubPublishResult {
+  pr: { number: number; url: string; branch: string };
+  opened: boolean;
+  commitUrl: string;
+}
+
 export interface OntologyHit {
   kind: 'concept' | 'relation';
   id: string;
@@ -265,6 +291,7 @@ export interface PageVersion {
   reviewId?: string;
   linkFix?: boolean;
   linksMovedFrom?: string;
+  fromGithub?: boolean;
 }
 
 export type ReviewItemState = 'open' | 'applied' | 'dismissed';
@@ -485,6 +512,16 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ restore: versionId }),
     }),
+  githubStatus: () => request<GithubStatus>('/api/github/status'),
+  githubConnect: () => request<{ url: string }>('/api/github/connect', { method: 'POST' }),
+  githubDisconnect: () => request<void>('/api/github/connection', { method: 'DELETE' }),
+  githubLink: (body: { url?: string; owner?: string; repo?: string; branch?: string; path?: string; pagePath?: string }) =>
+    request<{ pagePath: string }>('/api/github/links', json('POST', body)),
+  githubPage: (path: string) => request<GithubPage | null>(`/api/github/pages?${new URLSearchParams({ path })}`),
+  githubPublish: (path: string, content: string, title: string, description: string) =>
+    request<GithubPublishResult>('/api/github/pages/publish', json('POST', { path, content, title, description })),
+  githubPull: (path: string) => request<GithubPage>('/api/github/pages/pull', json('POST', { path })),
+  githubUnlink: (path: string) => request<void>(`/api/github/pages?${new URLSearchParams({ path })}`, { method: 'DELETE' }),
   searchLinkTargets: (q: string, from: string) =>
     request<LinkTarget[]>(`/api/links/search?${new URLSearchParams({ q, from })}`),
   deadLinks: (path: string) => request<DeadLink[]>(`/api/links/dead?${new URLSearchParams({ path })}`),

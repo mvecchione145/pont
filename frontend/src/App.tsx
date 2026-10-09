@@ -9,6 +9,7 @@ import { SearchDialog } from './components/SearchDialog';
 import { Trivia } from './components/Trivia';
 import { Settings } from './components/Settings';
 import { UploadDialog } from './components/UploadDialog';
+import { GithubLinkDialog } from './components/GithubLinkDialog';
 import { OntologyPage } from './components/OntologyPage';
 import { Flashcards, MatchGame } from './components/OntologyGames';
 import { ProposalsPage } from './components/ProposalsPage';
@@ -43,6 +44,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [githubOpen, setGithubOpen] = useState(false);
 
   // Cmd+K / Ctrl+K opens search from anywhere, like Notion.
   useEffect(() => {
@@ -116,6 +118,7 @@ export default function App() {
         onNewPage={newPage}
         onSearch={() => setSearchOpen(true)}
         onUpload={() => setUploadOpen(true)}
+        onLinkGithub={() => setGithubOpen(true)}
         pendingProposals={Object.values(proposalCounts).reduce((a, b) => a + b, 0)}
         pendingRecommendations={pendingRecommendations}
       />
@@ -202,6 +205,16 @@ export default function App() {
           defaultFolder={route.view === 'page' ? folderOf(route.path) : ''}
           onClose={() => setUploadOpen(false)}
           onImported={refreshEntries}
+        />
+      )}
+      {githubOpen && (
+        <GithubLinkDialog
+          onClose={() => setGithubOpen(false)}
+          onLinked={(pagePath) => {
+            setGithubOpen(false);
+            refreshEntries();
+            navigate({ view: 'page', path: pagePath });
+          }}
         />
       )}
     </div>
