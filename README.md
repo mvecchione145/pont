@@ -1,4 +1,5 @@
 # pont
+
 Bridging the context between humans and agents
 
 See [docs/](docs/README.md) for the [product overview](docs/overview.md), a [usage guide with examples](docs/usage.md), and [technical specifications](docs/technical.md) (including disk space), and [USER-STORY.md](USER-STORY.md) for the user stories.
@@ -13,11 +14,11 @@ docker compose up -d --wait
 
 The first start takes about a minute. No configuration is needed. To change ports or passwords, copy `.env.example` to `.env` and edit it.
 
-| What | URL | Default login |
-|---|---|---|
-| pont | http://localhost:3000 | — |
-| Keycloak admin console (create pont user accounts in the `pont` realm) | http://localhost:8080/admin | `admin` / `admin` |
-| MinIO console (knowledge files) | http://localhost:9001 | `pont` / `pont-minio-dev` |
+| What                                                                   | URL                           | Default login             |
+| ---------------------------------------------------------------------- | ----------------------------- | ------------------------- |
+| pont                                                                   | <http://localhost:3000>       | —                         |
+| Keycloak admin console (create pont user accounts in the `pont` realm) | <http://localhost:8080/admin> | `admin` / `admin`         |
+| MinIO console (knowledge files)                                        | <http://localhost:9001>       | `pont` / `pont-minio-dev` |
 
 Check that every service is up:
 
@@ -31,12 +32,12 @@ The default passwords are for local development only. Change them in `.env` befo
 
 pont has no self-signup: an admin creates every account.
 
-1. Open the Keycloak admin console at http://localhost:8080/admin and sign in as the bootstrap admin.
+1. Open the Keycloak admin console at <http://localhost:8080/admin> and sign in as the bootstrap admin.
 2. Switch to the **pont** realm (top-left realm menu).
 3. Go to **Users → Create user**, fill in a username and email, and create it.
 4. On the user's **Credentials** tab, set a password. Leave **Temporary** on to make the user choose their own password at first login.
 
-The user can now sign in at http://localhost:3000.
+The user can now sign in at <http://localhost:3000>.
 
 ### Connecting Claude Code
 
@@ -51,8 +52,8 @@ The user can now sign in at http://localhost:3000.
 
 Claude Code can then call pont's MCP tools as you:
 
-- **Read:** `search`, `read_entry`, `list_entries`, `get_concept`, `list_concepts`
-- **Propose** (reviewed by a person before anything changes): `propose_edit`, `propose_new_page`, `propose_concept`, `propose_alias`, `propose_relation`, and `list_my_proposals` to see what happened to them
+* **Read:** `search`, `read_entry`, `list_entries`, `get_concept`, `list_concepts`
+* **Propose** (reviewed by a person before anything changes): `propose_edit`, `propose_new_page`, `propose_concept`, `propose_alias`, `propose_relation`, and `list_my_proposals` to see what happened to them
 
 Revoke a token on the same page when you no longer need it.
 
@@ -64,38 +65,38 @@ Press **⌘K** (or **Ctrl K**), or click **Search** in the sidebar. Search is hy
 
 How it works:
 
-- Each page is split into chunks by headings, with a size limit. A page that fits in one chunk stays whole.
-- A local embedding model ([bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5)) runs inside the server, with no API key. On the first start it downloads about 35 MB into the `model-cache` volume, and search is ready a few seconds later.
-- Chunks and their vectors are stored in Redis, which runs a vector search and a BM25 keyword search side by side. Their scores are combined, and results with weak meaning and no keyword match are dropped, so unrelated questions return nothing.
-- The index updates about 1.5 seconds after a page is saved, moved, or deleted. On every start it catches up with MinIO, which remains the source of truth.
+* Each page is split into chunks by headings, with a size limit. A page that fits in one chunk stays whole.
+* A local embedding model ([bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5)) runs inside the server, with no API key. On the first start it downloads about 35 MB into the `model-cache` volume, and search is ready a few seconds later.
+* Chunks and their vectors are stored in Redis, which runs a vector search and a BM25 keyword search side by side. Their scores are combined, and results with weak meaning and no keyword match are dropped, so unrelated questions return nothing.
+* The index updates about 1.5 seconds after a page is saved, moved, or deleted. On every start it catches up with MinIO, which remains the source of truth.
 
 To rebuild the index from scratch, call `POST /api/search/reindex` as a signed-in user. The index also rebuilds itself when the embedding model or the chunking changes.
 
 Tuning (environment variables on `server`):
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `EMBEDDING_MODEL` | `Xenova/bge-small-en-v1.5` | Embedding model (changing it triggers a rebuild) |
-| `SEARCH_ALPHA_LONG` | `0.7` | Weight of meaning versus keywords for questions of 3+ words |
-| `SEARCH_ALPHA_SHORT` | `0.3` | The same weight for 1–2 word queries, which lean on exact terms |
-| `SEARCH_MIN_SIMILARITY` | `0.62` | Minimum similarity for a result that matches no keywords |
+| Variable                | Default                    | Meaning                                                         |
+| ----------------------- | -------------------------- | --------------------------------------------------------------- |
+| `EMBEDDING_MODEL`       | `Xenova/bge-small-en-v1.5` | Embedding model (changing it triggers a rebuild)                |
+| `SEARCH_ALPHA_LONG`     | `0.7`                      | Weight of meaning versus keywords for questions of 3+ words     |
+| `SEARCH_ALPHA_SHORT`    | `0.3`                      | The same weight for 1–2 word queries, which lean on exact terms |
+| `SEARCH_MIN_SIMILARITY` | `0.62`                     | Minimum similarity for a result that matches no keywords        |
 
 ### Uploading files
 
 Click **Upload** in the sidebar, then drop files or whole folders (or use **Choose files** / **Choose folder**). Folders keep their structure: `Handbook/Eng/On-call.md` becomes the page `Handbook/Eng/On-call` inside the folder you pick.
 
-| File type | How it's imported |
-|---|---|
-| `.md`, `.markdown`, `.txt` | As-is |
-| `.docx` (Word) | Converted to Markdown: headings, lists, links, bold/italic, and tables (images are dropped) |
-| `.html`, `.htm` | Converted to Markdown the same way (scripts, styles, and embedded images are dropped) |
-| `.pdf` | Text only: layout, tables, and images are not kept, and scanned PDFs (images of text) have no text to import |
+| File type                  | How it's imported                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `.md`, `.markdown`, `.txt` | As-is                                                                                                        |
+| `.docx` (Word)             | Converted to Markdown: headings, lists, links, bold/italic, and tables (images are dropped)                  |
+| `.html`, `.htm`            | Converted to Markdown the same way (scripts, styles, and embedded images are dropped)                        |
+| `.pdf`                     | Text only: layout, tables, and images are not kept, and scanned PDFs (images of text) have no text to import |
 
 Before anything is written, a preview lists every file with its destination page. Files that would replace an existing page are **skipped unless you tick "Replace existing"**; replaced pages keep their previous versions in history. Hidden files (such as `.DS_Store` and `.git/`) and unsupported types are skipped. Limits: 10 MB per file, 50 MB and 500 files per upload. Imported pages are searchable and available to agents a few seconds later.
 
 ### GitHub docs
 
-Link a Markdown file in a GitHub repository (a README, or anything under `docs/`) to a pont page, edit it in pont, and publish your changes as a pull request.
+Link a Markdown file in a GitHub repository (a README, or anything under `docs/`) to a Pont page, edit it in pont, and publish your changes as a pull request.
 
 **Setup (once).** Register a GitHub OAuth App (*GitHub → Settings → Developer settings → OAuth Apps → New OAuth App*) with the authorization callback URL `http://localhost:3000/api/github/callback` (your pont address + `/api/github/callback`). Then either enter its client ID and a client secret in **Settings → Integrations → GitHub** (the secret is stored encrypted with `PONT_SECRET_KEY`, like the LLM key), or put them in `.env` as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` and run `docker compose up -d`. The environment wins when set, and Settings then shows the app as set by the server, so an admin can lock it down (pont has no roles yet, so anyone signed in can change Settings). For GitHub Enterprise Server, also set `GITHUB_URL` and `GITHUB_API_URL`.
 
@@ -123,8 +124,8 @@ History also works for pages that have since been deleted, at `#/history/<page p
 
 Agents connected through MCP can suggest fixes when they find something missing, outdated, or contradictory, but they can never change anything themselves:
 
-- `propose_edit` takes exact find-and-replace edits (each `find` must match the page exactly once), and `propose_new_page` takes a new Markdown page. pont stores each proposal as a unified diff (`proposals/<id>.patch`) against the page version the agent saw.
-- `propose_concept`, `propose_alias`, and `propose_relation` must quote supporting passages (checked against the pages) and join the review queue on the **Ontology** page.
+* `propose_edit` takes exact find-and-replace edits (each `find` must match the page exactly once), and `propose_new_page` takes a new Markdown page. pont stores each proposal as a unified diff (`proposals/<id>.patch`) against the page version the agent saw.
+* `propose_concept`, `propose_alias`, and `propose_relation` must quote supporting passages (checked against the pages) and join the review queue on the **Ontology** page.
 
 Page proposals appear on the **Agent Proposals** page (with a count in the sidebar and a banner on affected pages). Each shows the agent's reason and a diff, and can be **approved**, **edited and approved**, or **rejected** with a note the agent can read. If the page changed after the proposal was made, it is flagged: the diff is shown against the current version when it still applies, and can only be edited in by hand when it doesn't. Versions saved from proposals record the proposal and who proposed it, with the approver as author. Each user can have at most 25 proposals waiting for review.
 
@@ -151,8 +152,8 @@ Only one calculation runs at a time, and it can be cancelled. If a run fails or 
 
 Trivia needs an LLM. Set it up once for everyone under **Settings**:
 
-- **Anthropic:** Claude models through the Anthropic API (default model `claude-opus-5-5`).
-- **OpenAI-compatible:** OpenAI, or any server with the same API, such as Ollama (`http://localhost:11434/v1` from your machine, or `http://host.docker.internal:11434/v1` from inside Docker), vLLM, or LiteLLM.
+* **Anthropic:** Claude models through the Anthropic API (default model `claude-opus-5-5`).
+* **OpenAI-compatible:** OpenAI, or any server with the same API, such as Ollama (`http://localhost:11434/v1` from your machine, or `http://host.docker.internal:11434/v1` from inside Docker), vLLM, or LiteLLM.
 
 The API key is encrypted in Postgres with `PONT_SECRET_KEY` and never sent back to the browser. **Set `PONT_SECRET_KEY` in `.env` to a long random value** (for example `openssl rand -base64 32`) before entering a real key; if you change it later, enter the API key again. There are no roles yet, so any signed-in user can change these settings.
 
@@ -160,14 +161,14 @@ The API key is encrypted in Postgres with `PONT_SECRET_KEY` and never sent back 
 
 ## Services
 
-| Service | Role |
-|---|---|
-| `frontend` | React app, served by nginx, which also proxies `/api` and `/mcp` to the server |
-| `server` | Node.js REST API for the frontend, and the MCP endpoint for agents (`/mcp`) |
-| `minio` | Stores knowledge files as Markdown, with bucket versioning for history (`minio-init` creates the bucket on startup) |
-| `redis` | Redis Stack: document chunks and vectors for hybrid search |
-| `postgres` | Databases for Keycloak and pont |
-| `keycloak` | Login and user accounts (the `pont` realm is imported on startup) |
+| Service    | Role                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| `frontend` | React app, served by nginx, which also proxies `/api` and `/mcp` to the server                                      |
+| `server`   | Node.js REST API for the frontend, and the MCP endpoint for agents (`/mcp`)                                         |
+| `minio`    | Stores knowledge files as Markdown, with bucket versioning for history (`minio-init` creates the bucket on startup) |
+| `redis`    | Redis Stack: document chunks and vectors for hybrid search                                                          |
+| `postgres` | Databases for Keycloak and pont                                                                                     |
+| `keycloak` | Login and user accounts (the `pont` realm is imported on startup)                                                   |
 
 ## Development
 
