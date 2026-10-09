@@ -35,6 +35,7 @@ Context flows **both ways** across the bridge:
 
 - **MCP server:** how agents read context and submit proposed updates.
 - **Front-end UI:** how humans browse, write, and curate knowledge, and review what agents propose.
+- **AI assistance, always human-gated:** LLM features (trivia, ontology, page review) only suggest. A person approves every change, and every LLM call that costs money is started by a person after seeing an estimate.
 
 pont is **open source**.
 
@@ -42,28 +43,33 @@ pont is **open source**.
 
 | Area | Decision |
 |---|---|
-| Language / runtime | Node.js |
-| Storage | Knowledge lives as **files**, either on a local file system or in blob storage. The MVP uses **MinIO** (S3-compatible) only |
+| Language / runtime | **TypeScript** (strict) on Node.js 22, for both the server and the frontend |
+| Storage | Knowledge lives as **files**, either on a local file system or in blob storage. The MVP uses **MinIO** (S3-compatible) only, via the Chainguard image (the official MinIO images are no longer published) |
 | File format | **Plain Markdown** (no frontmatter) |
-| Frontend | **React** |
+| Frontend | **React** with Vite, served by nginx (which also proxies `/api` and `/mcp` to the server) |
+| Editor | **Notion-style block editor** (Milkdown Crepe) that reads and writes plain Markdown: `/` block menu, drag handles, a formatting toolbar, and autosave |
 | File layout | Entries are stored as-is: `knowledge/<path>.md` |
 | History | **MinIO bucket versioning**: every write keeps the previous version |
-| Proposals (post-MVP) | **Unified diff files** in git-diff format at `proposals/<id>.patch`. Approving one applies the patch and writes the file back. No git server needed |
+| Proposals | **Unified diff files** in git-diff format at `proposals/<id>.patch`. Approving one applies the patch and writes the file back. No git server needed |
 | Users | **Several users, with login required** in the frontend and on the MCP server. No roles in the MVP: every logged-in user has full access |
 | Identity | **Keycloak**, self-hosted in the Compose stack, with pont-managed accounts (username/email and password). No external identity providers yet |
-| Account storage | **Postgres**: Keycloak's database, plus pont's API token table |
+| Database | **Postgres**: Keycloak's database, plus pont's own tables: API tokens, settings, trivia questions and scores, ontology runs and recommendations, page proposals, ontology links, and page reviews |
 | Account creation | **Admin-created only**, through the Keycloak admin console. No self-signup. The admin is a bootstrap Keycloak admin account set at deploy time |
 | Agent credentials | **Personal API tokens issued by pont** (not Keycloak): pont stores only a hash of each token in Postgres, linked to the user's Keycloak ID. Each user creates their own, so agent activity is tied to that user |
-| Backend | **One small Node.js server** that serves the frontend's REST API and the MCP endpoint (HTTP/SSE). It is the only service that holds MinIO credentials |
+| Backend | **One small Node.js server** (Express) that serves the frontend's REST API and the MCP endpoint. It is the only service that holds MinIO credentials |
 | Chunks and vectors | **Redis Stack**, a key-value store with built-in vector search. Each Markdown file is split into chunks, and each chunk is stored as a hash holding its Markdown, a normalized copy for keyword search, its embedding vector, and metadata (source path, heading path). The index records which version of each file it holds and catches up with MinIO on every start. MinIO stays the source of truth, so the index can always be rebuilt from it |
 | Embeddings | **Local model**, `bge-small-en-v1.5` (384 dimensions) through transformers.js, running inside the Node.js server. No API key, works offline after a one-time download. Model files are cached in a Docker volume |
 | Chunking | **By Markdown headings, with a size limit.** A section that is too long is split further, and short sibling sections may be merged. Each chunk is prefixed with its file title and heading path before embedding |
 | Search | **Hybrid: vector plus keyword.** Redis Stack runs a vector (KNN) search and a full-text (BM25) search. Scores are combined with a tunable weighting that leans on keywords for 1–2 word queries and on meaning for longer questions, and keyword scores are scaled by how much of the query a chunk covers. Results with weak meaning and no keyword match are dropped, so unrelated questions return nothing |
 | First agent client | **Claude Code** |
-| MCP transport | **HTTP/SSE** |
+| MCP transport | **Streamable HTTP** (the current MCP HTTP transport, stateless), authenticated with a personal API token |
 | Capturing knowledge | Humans write it on purpose. Nothing is pulled in automatically |
 | Delivering knowledge | **On demand:** MCP tools return context when an agent calls them. Nothing is injected at session start |
 | Deployment | **Docker Compose** |
+| LLM provider | **Anthropic** (official SDK, default model `claude-opus-5-5`) or **any OpenAI-compatible endpoint** (OpenAI, Ollama, vLLM, LiteLLM). Configured once for the whole install on the Settings page. The API key is encrypted at rest (AES-256-GCM with `PONT_SECRET_KEY`) and never sent to the browser. Answers use structured output validated against a schema |
+| LLM cost control | Every feature that spends money (ontology Calculate, page Review) shows the estimated tokens and cost and asks first. Trivia questions are generated one at a time on demand |
+| Ontology storage | **One YAML file in MinIO** (`ontology.yaml`), versioned like pages. Recommendations and runs live in Postgres |
+| Agent harness | **Strands Agents (TypeScript SDK)** for the open-ended ontology workflows, with a cap on model calls per batch. Simple one-shot tasks (trivia, page review) call the LLM directly |
 
 ## MVP
 
@@ -72,7 +78,7 @@ The smallest working version of pont is **a single Docker Compose application wi
 ```
 docker compose up
  ├── frontend   (React)    humans browse and write Markdown knowledge entries
- ├── server     (Node.js)  REST API for the frontend + MCP endpoint for Claude Code (HTTP/SSE)
+ ├── server     (Node.js)  REST API for the frontend + MCP endpoint for Claude Code (Streamable HTTP)
  ├── minio                 file store for knowledge files (source of truth)
  ├── redis                 Redis Stack: document chunks and their vectors, for semantic search
  ├── keycloak              login and user accounts
@@ -82,7 +88,7 @@ docker compose up
 The MVP works when someone can run `docker compose up`, log in, write a knowledge entry in the frontend, and have Claude Code find that entry by meaning (semantic search) and read it through the MCP server. The frontend never talks to MinIO directly. All reads and writes go through the Node.js server, which serves both humans (REST) and agents (MCP).
 
 ### Out of scope for the MVP
-- **Agent-proposed changes and the review flow (Epic 5)**: this comes after the MVP
+- **Agent-proposed changes and the review flow (Epic 5)**: built after the MVP
 - A local file system backend (the MVP supports MinIO only)
 - Roles and permissions: every logged-in user has full access
 - Logging in with external identity providers (Google, GitHub, corporate SSO)
@@ -114,42 +120,43 @@ pont reuses design ideas from [Onyx](https://github.com/onyx-dot-app/onyx) (MIT-
 ## Epic 1 — Fast setup
 
 **1.1** As a **Domain Expert**, I want to stand up pont quickly with minimal configuration, so that I can start capturing knowledge on day one.
-- [ ] `docker compose up` starts the frontend, the Node.js server, MinIO, Redis Stack, Keycloak, and Postgres with no other setup
-- [ ] On startup, the vector index is created if it doesn't exist
-- [ ] Default configuration works out of the box, including MinIO credentials and the bucket being created on startup with versioning turned on
-- [ ] A pont Keycloak realm and client are imported on startup, so login works with no manual Keycloak setup
+- [x] `docker compose up` starts the frontend, the Node.js server, MinIO, Redis Stack, Keycloak, and Postgres with no other setup
+- [x] On startup, the vector index is created if it doesn't exist
+- [x] Default configuration works out of the box, including MinIO credentials and the bucket being created on startup with versioning turned on
+- [x] A pont Keycloak realm and client are imported on startup, so login works with no manual Keycloak setup
 - [ ] There is a clear first-run experience with no required up-front schema design
 
 **1.2** As an **AI Engineer**, I want to connect Claude Code to pont's MCP server with a single config entry, so that integration takes minutes, not days.
-- [ ] Docs include a copy-paste `claude mcp add` command or `.mcp.json` snippet
-- [ ] Once connected, Claude Code can list and read context right away
+- [x] Docs include a copy-paste `claude mcp add` command or `.mcp.json` snippet
+- [x] Once connected, Claude Code can list and read context right away
 
 ## Epic 2 — Users and login
 
 **2.1** As a **Domain Expert**, I want to log in to pont with my own account, so that my changes are attributed to me and only my team can see our knowledge.
-- [ ] The frontend requires login through Keycloak before anyone can view or edit knowledge
-- [ ] Several users can have pont-managed accounts (username/email and password) on the same pont instance
-- [ ] Accounts are created by an admin in the Keycloak admin console. There is no self-signup
-- [ ] A bootstrap admin account is configured through environment variables in the Compose file
-- [ ] Every logged-in user can read and edit everything (no roles in the MVP)
-- [ ] Every saved version records the logged-in user as its author (stored as object metadata)
+- [x] The frontend requires login through Keycloak before anyone can view or edit knowledge
+- [x] Several users can have pont-managed accounts (username/email and password) on the same pont instance
+- [x] Accounts are created by an admin in the Keycloak admin console. There is no self-signup
+- [x] A bootstrap admin account is configured through environment variables in the Compose file
+- [x] Every logged-in user can read and edit everything (no roles in the MVP)
+- [x] Every saved version records the logged-in user as its author (stored as object metadata)
 
 **2.2** As an **AI Engineer**, I want Claude Code to authenticate to the MCP server, so that only authorized agents can read the organization's knowledge.
-- [ ] The MCP server rejects requests that don't carry valid credentials
-- [ ] Each user can create, view, and revoke their own personal API tokens from the frontend
-- [ ] pont issues the tokens. The full token is shown once at creation, and only a hash is stored in Postgres
-- [ ] Every MCP request is attributed to the user who owns the token
-- [ ] The Claude Code config snippet from story 1.2 includes the user's token
+- [x] The MCP server rejects requests that don't carry valid credentials
+- [x] Each user can create, view, and revoke their own personal API tokens from the frontend
+- [x] pont issues the tokens. The full token is shown once at creation, and only a hash is stored in Postgres
+- [x] Every MCP request is attributed to the user who owns the token
+- [x] The Claude Code config snippet from story 1.2 includes the user's token
 
 ## Epic 3 — Humans author and work with knowledge
 
 **3.1** As a **Domain Expert**, I want to write and organize domain knowledge (BI, decisions, processes) in a simple interface, so that it is captured in one place.
-- [ ] I can create, edit, and organize knowledge entries without technical skills
-- [ ] Each entry is saved as a file in the file store (MinIO in the MVP)
+- [x] I can create, edit, and organize knowledge entries without technical skills, in a Notion-style editor (pages and folders in a sidebar, inline title, autosave)
+- [x] If someone else saved the page while I was editing, my save is refused instead of overwriting theirs, and I can copy my version or load theirs
+- [x] Each entry is saved as a file in the file store (MinIO in the MVP)
 - [ ] The interface is easy to understand without training
 
 **3.2** As a **Domain Expert**, I want to browse and search existing knowledge, so that I can find and check what agents are working from.
-- [ ] I can find any entry by browsing, or by searching in plain language (hybrid vector plus keyword search)
+- [x] I can find any entry by browsing, or by searching in plain language (hybrid vector plus keyword search)
 - [ ] I can see what an agent sees for a given entry
 
 **3.3** As a **Domain Expert**, I want to record decisions together with their reasoning, so that both humans and agents understand *why*, not just *what*.
@@ -163,24 +170,24 @@ pont reuses design ideas from [Onyx](https://github.com/onyx-dot-app/onyx) (MIT-
 ## Epic 4 — Agents use context through MCP
 
 **4.1** As an **Agent**, I want to retrieve relevant organizational context through MCP tools, so that my output follows how this organization actually works.
-- [ ] MCP tools support finding and reading knowledge entries
-- [ ] Context is returned only when a tool is called (on demand)
+- [x] MCP tools support finding and reading knowledge entries
+- [x] Context is returned only when a tool is called (on demand)
 - [ ] Results are structured and focused enough to actually help the agent (an unhelpful tool is a reason users drop pont)
 
 **4.2** As an **AI Engineer**, I want MCP tools that are well described and predictable, so that agents pick the right tool and I can trust their behavior.
-- [ ] Every tool has a clear name, description, and input schema
+- [x] Every tool has a clear name, description, and input schema
 - [ ] Tool behavior is documented and consistent
 
 **4.3** As an **Agent**, I want to search knowledge by meaning and get back the most relevant chunks, so that I get focused context without reading whole files.
-- [ ] An MCP search tool takes a natural-language query and returns the top matching chunks from Redis, using hybrid vector plus keyword search
-- [ ] Exact-term queries (for example, a metric name or acronym) find the chunks that contain that term
-- [ ] Each result includes the chunk text, its source file path, and its heading, so the agent can read the full entry if it needs more
-- [ ] The number of results is configurable, with a sensible default
+- [x] An MCP search tool takes a natural-language query and returns the top matching chunks from Redis, using hybrid vector plus keyword search
+- [x] Exact-term queries (for example, a metric name or acronym) find the chunks that contain that term
+- [x] Each result includes the chunk text, its source file path, and its heading, so the agent can read the full entry if it needs more
+- [x] The number of results is configurable, with a sensible default
 
 **4.4** As a **Domain Expert**, I want the search index to stay in sync with the knowledge files automatically, so that agents never search stale content.
-- [ ] Saving an entry re-chunks and re-embeds it, and replaces that file's old chunks in Redis
-- [ ] Deleting an entry removes its chunks
-- [ ] An admin can rebuild the whole index from MinIO (for example, after changing the embedding model or chunking settings)
+- [x] Saving an entry re-chunks and re-embeds it, and replaces that file's old chunks in Redis
+- [x] Deleting an entry removes its chunks
+- [x] An admin can rebuild the whole index from MinIO (for example, after changing the embedding model or chunking settings)
 
 ## Epic 5 — Agents propose, humans approve *(post-MVP)*
 
@@ -251,6 +258,7 @@ Turns free-text documentation into explicit concepts and relationships that peop
 **8.4** As a **Domain Expert**, I want to approve or reject every recommendation, so that the ontology only contains what we agree is true.
 - [x] Every recommendation quotes its evidence, verified against the page
 - [x] Approval applies it to `ontology.yaml`; rejection is remembered so it isn't suggested again
+- [x] **Approve all / Reject all**, for the whole queue or one group, with a confirmation showing the count. Approvals run in dependency order (new concepts first, deletions last); any that can't apply stay listed with the reason
 
 **8.5** As a **Domain Expert**, I want a page for every concept and relationship that I can edit or delete, so that I can correct the ontology directly.
 - [x] Concept and relationship pages with edit, delete (warning when pages link to it), and adding relationships
@@ -260,8 +268,37 @@ Turns free-text documentation into explicit concepts and relationships that peop
 **8.6** As a **Domain Expert**, I want to link words in the documentation to ontology concepts, so that readers and agents know exactly what a term means.
 - [x] Typing `[[` or pressing ⌘⇧K opens a picker of matching concepts and relationships (name, type, description), with "create concept" when nothing fits
 - [x] Links are plain Markdown (`#/concept/<id>`), and agents can resolve them with the `get_concept` MCP tool
+
+## Epic 9 — Page review *(post-MVP)*
+
+Helps people keep each page clear and consistent with the rest of the documentation, without the LLM ever changing a page on its own.
+
+**9.1** As a **Domain Expert**, I want an LLM to review the page I'm on and suggest clearer wording, so that readers (and agents) understand it the way it was meant.
+- [x] A **Review** button on every page opens a side panel; a confirmation shows which related pages will be compared, the estimated tokens, and the cost before anything is sent
+- [x] Suggestions target ambiguity, undefined jargon, structure, missing context, inconsistent terms, and meaning-changing typos, and must keep every fact
+- [x] Each suggestion shows the old and new text; I can **Apply** it (saved as a new page version, marked "From a review" in the history), **Show** it in the editor, or **Dismiss** it
+
+**9.2** As a **Domain Expert**, I want the review to point out where this page contradicts other pages, so that conflicting documentation gets found and fixed.
+- [x] Related passages from other pages are found with the same hybrid search agents use, and sent with the page
+- [x] Each conflict quotes both sides, links to the other page, says which side looks right, and offers a fix when this page is likely the wrong one
+- [x] Quotes are checked against the real text: invented quotes are dropped, and one-click Apply is only offered when the quote appears exactly once on the page
+
+**9.3** As a **Domain Expert**, I want the latest review of a page kept, so that I or a colleague can work through it later.
+- [x] Reviews run in the background and are stored; the panel warns when the page has changed since the review
+
 ---
 
-## Open questions
+## Decisions made along the way
 
-None right now. Add new questions here as they come up during implementation.
+- **Copy Onyx's ideas, not its code.** pont reimplements hybrid search and chunking in TypeScript rather than depending on Onyx.
+- **TypeScript everywhere**, switched from plain JavaScript early in the build.
+- **A Notion-style editor** (Milkdown Crepe) over a plain Markdown textarea, because writing should feel seamless.
+- **Strands Decider 2B is shelved.** The idea was to run it in the Compose stack for cheap ontology decisions; its large model download and unclear role in the workflow outweighed the benefit for now.
+- **Ontology work is an agent harness, started by hand.** Documentation is free text, so finding concepts is open-ended work suited to agents, but runs only happen when a person clicks Calculate.
+- **Agents propose, people approve:** page edits, new pages, and ontology changes from agents all go through review queues; nothing is auto-applied.
+
+## Open questions and known gaps
+
+- Deleting or disabling a user in Keycloak doesn't revoke their pont API tokens yet.
+- Deleted pages can be restored, but only from their history URL; there is no "Recently deleted" view yet.
+- Page history is reachable from the page's ⋯ menu only; there is no workspace-wide activity feed.
