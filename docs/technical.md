@@ -203,6 +203,8 @@ Pages link to each other as `#/p/<path>`, to headings as `#/p/<path>?section=<he
 
 Fixes rewrite every link with that destination on the page and save a new version, marked *Link fix* in the history.
 
+**Moves update links.** The server keeps, in memory, which pages each page links to. When a page is moved or renamed, its links to itself are rewritten as part of the move, and every other page that links to it gets a new version with those links pointed at the new path (headings kept), by the person who moved it and marked *Links updated*. A page saved at the same moment is retried; anything still missed shows up as a dead link with the new path suggested.
+
 ## LLM features
 
 All LLM features use the provider set once in **Settings**: Anthropic (default model `claude-opus-5-5`) or any OpenAI-compatible endpoint. Answers are requested as structured output and validated against a schema before use.

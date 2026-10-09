@@ -1,4 +1,7 @@
 import { entryEvents, EntryError, getEntry, listEntries } from './entries.js';
+import { linkedPages, plainText } from './markdown-links.js';
+
+export { plainText };
 
 // Links between pages. A page links to another page, or to a heading in a
 // page (its own or another), with an ordinary Markdown link:
@@ -8,7 +11,8 @@ import { entryEvents, EntryError, getEntry, listEntries } from './entries.js';
 //
 // The editor's link picker searches pages and headings to build these. This
 // keeps every page's headings in memory for that search: built on start and
-// updated on every save and delete.
+// updated on every save and delete. It also records which pages each page
+// links to, so links can be updated when a page moves (see linkupdates.ts).
 
 export interface Heading {
   level: number;
@@ -20,16 +24,6 @@ export interface Heading {
 
 const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
 const FENCE = /^\s*(```|~~~)/;
-
-// Inline Markdown to the text the editor renders.
-export function plainText(markdown: string): string {
-  return markdown
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/<[^>]+>/g, '')
-    .replace(/(\*\*|__|\*|_|~~|`)(.+?)\1/g, '$2')
-    .replace(/\\([\\`*_{}[\]()#+\-.!|~])/g, '$1')
-    .trim();
-}
 
 export function extractHeadings(markdown: string): Heading[] {
   const headings: Heading[] = [];
@@ -54,20 +48,33 @@ const index = new Map<string, Heading[]>();
 // The headings of a page, or undefined for a page that doesn't exist.
 export const headingsOf = (path: string) => index.get(path);
 
+// The pages each page links to, to find what to update when a page moves.
+const outgoing = new Map<string, Set<string>>();
+
+export const pagesLinkingTo = (path: string) =>
+  [...outgoing.entries()].filter(([, targets]) => targets.has(path)).map(([from]) => from);
+
 async function reindex(path: string): Promise<void> {
   try {
-    index.set(path, extractHeadings((await getEntry(path)).content));
+    const { content } = await getEntry(path);
+    index.set(path, extractHeadings(content));
+    outgoing.set(path, linkedPages(content));
   } catch (err) {
-    if (err instanceof EntryError && err.status === 404) index.delete(path);
+    if (err instanceof EntryError && err.status === 404) forget(path);
     else throw err;
   }
+}
+
+function forget(path: string) {
+  index.delete(path);
+  outgoing.delete(path);
 }
 
 const log = (err: unknown) => console.error('page links:', err instanceof Error ? err.message : err);
 
 export async function startPageLinkIndex(): Promise<void> {
   entryEvents.on('saved', (path) => void reindex(path).catch(log));
-  entryEvents.on('deleted', (path) => index.delete(path));
+  entryEvents.on('deleted', forget);
   try {
     for (const entry of await listEntries()) await reindex(entry.path);
   } catch (err) {

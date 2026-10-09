@@ -21,6 +21,7 @@ import { startLinkIndex } from './ontology/links.js';
 import { startPageLinkIndex } from './pagelinks.js';
 import { linkErrors, linksRouter } from './routes/links.js';
 import { startMoveTracking } from './deadlinks.js';
+import { startLinkUpdates } from './linkupdates.js';
 import { startIndexer } from './search/index.js';
 
 const app = express();
@@ -75,6 +76,7 @@ void startIndexer();
 void startLinkIndex();
 void startPageLinkIndex();
 void startMoveTracking();
+startLinkUpdates();
 
 async function shutdown() {
   server.close();

@@ -264,6 +264,7 @@ export interface PageVersion {
   movedFrom?: string;
   reviewId?: string;
   linkFix?: boolean;
+  linksMovedFrom?: string;
 }
 
 export type ReviewItemState = 'open' | 'applied' | 'dismissed';

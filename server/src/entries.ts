@@ -10,6 +10,7 @@ import { EventEmitter } from 'node:events';
 import { s3 } from './clients.js';
 import { config } from './config.js';
 import type { User } from './auth.js';
+import { rewritePageLinks } from './markdown-links.js';
 
 // Knowledge entries are plain Markdown files at knowledge/<path>.md in the
 // versioned bucket. Every write keeps the previous version, and each version
@@ -44,7 +45,7 @@ export interface Entry {
 export const entryEvents = new EventEmitter<{
   saved: [path: string];
   deleted: [path: string];
-  moved: [from: string, to: string];
+  moved: [from: string, to: string, user: User];
 }>();
 
 export class EntryError extends Error {
@@ -210,9 +211,12 @@ export async function moveEntry(
   if (source.versionId !== baseVersionId) {
     throw new EntryError(409, `"${from}" was changed by someone else since you opened it`);
   }
+  // Links from the page to itself (e.g. to its own headings) follow it.
+  const { content } = rewritePageLinks(source.content, from, to);
   // The new path's history links back to where it came from.
-  const moved = await saveEntry(to, source.content, null, user, { 'moved-from': encodeURIComponent(from) });
+  const moved = await saveEntry(to, content, null, user, { 'moved-from': encodeURIComponent(from) });
   await deleteEntry(from);
-  entryEvents.emit('moved', from, to);
+  // Other pages' links to it are updated by linkupdates.ts.
+  entryEvents.emit('moved', from, to, user);
   return moved;
 }

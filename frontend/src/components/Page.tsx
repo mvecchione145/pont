@@ -226,8 +226,16 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
         const moved = await api.moveEntry(from, target, version.current);
         pathRef.current = moved.path;
         version.current = moved.versionId ?? null;
-        setEntry((e) => e && { ...e, ...moved, content: e.content });
         setTitleError(null);
+        // The move rewrote the page's links to itself (e.g. to its own
+        // headings): show that version, or the next autosave would undo it.
+        if (moved.content !== saved.current && latest.current === saved.current) {
+          latest.current = saved.current = moved.content;
+          setEntry(moved);
+          setReloadCount((n) => n + 1);
+        } else {
+          setEntry((e) => e && { ...e, ...moved, content: e.content });
+        }
         onRenamed(from, moved.path);
       } catch (err) {
         const message =

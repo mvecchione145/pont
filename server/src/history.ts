@@ -34,6 +34,8 @@ export interface Version {
   movedFrom?: string;
   reviewId?: string;
   linkFix?: boolean;
+  // The links in this version were updated because that page moved.
+  linksMovedFrom?: string;
 }
 
 const decode = (value?: string) => (value ? decodeURIComponent(value) : undefined);
@@ -48,6 +50,7 @@ function provenance(meta: Record<string, string> | undefined): Partial<Version> 
     movedFrom: decode(meta['moved-from']),
     reviewId: meta['review-id'],
     linkFix: meta['link-fix'] === '1' || undefined,
+    linksMovedFrom: decode(meta['links-moved-from']),
   };
 }
 

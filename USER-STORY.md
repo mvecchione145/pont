@@ -172,7 +172,7 @@ pont reuses design ideas from [Onyx](https://github.com/onyx-dot-app/onyx) (MIT-
 - [x] Links are plain Markdown (`#/p/<path>` and `#/p/<path>?section=<heading>`); following a heading link scrolls to the heading and highlights it
 - [x] Dead links are found without an LLM: links to moved, deleted, or missing pages, renamed headings, and deleted concepts, shown as part of the page's Review panel
 - [x] Each dead link suggests a new destination when pont can find one (where the page was moved, following chains of moves; the closest heading; a concept with the link's name) and can be repointed or unlinked in one click
-- [ ] Links are updated automatically when the target page is renamed or moved
+- [x] Links are updated automatically when the target page is renamed or moved: links on other pages (headings included) and the page's links to itself follow it, as new versions marked *Links updated*
 
 ## Epic 4 — Agents use context through MCP
 

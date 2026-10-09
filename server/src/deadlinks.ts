@@ -3,7 +3,8 @@ import type { User } from './auth.js';
 import { EntryError, entryEvents, getEntry, listEntries, saveEntry } from './entries.js';
 import { hasHistory, listVersions } from './history.js';
 import { findConcept, readOntology, type Ontology } from './ontology/store.js';
-import { headingsOf, plainText } from './pagelinks.js';
+import { headingsOf } from './pagelinks.js';
+import { internalLinks, pageHref, type FoundLink, type LinkTarget } from './markdown-links.js';
 
 // Dead links: internal links whose destination is gone. Pages link to other
 // pages and headings as #/p/<path>[?section=<heading>] and to the ontology as
@@ -75,51 +76,7 @@ async function movedTo(path: string, exists: (p: string) => boolean): Promise<st
 
 // --- Finding links -----------------------------------------------------------------
 
-type Target =
-  | { kind: 'page'; path: string; section?: string }
-  | { kind: 'concept' | 'relation'; id: string };
-
-interface FoundLink {
-  text: string;
-  href: string;
-  target: Target;
-}
-
-const LINK = /(!?)\[([^\]\n]*)\]\(\s*(#\/[^)\s]*)\s*\)/g;
-const CODE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$|`[^`\n]+`/gm;
-
-const decode = (s: string) => {
-  try {
-    return decodeURIComponent(s);
-  } catch {
-    return s;
-  }
-};
-
-// Mirrors the frontend router's parsing of #/p/..., #/concept/..., #/relation/...
-export function parseHref(href: string): Target | null {
-  const [location, query = ''] = href.replace(/^#/, '').split('?');
-  const [, view = '', ...rest] = location.split('/');
-  const path = rest.map(decode).join('/');
-  if (!path) return null;
-  if (view === 'p' || view === 'entry') {
-    const section = new URLSearchParams(query).get('section') ?? undefined;
-    return { kind: 'page', path, section };
-  }
-  if (view === 'concept' || view === 'relation') return { kind: view, id: path };
-  return null;
-}
-
-export function internalLinks(markdown: string): FoundLink[] {
-  const code = [...markdown.matchAll(CODE)].map((m) => [m.index, m.index + m[0].length] as const);
-  const links: FoundLink[] = [];
-  for (const m of markdown.matchAll(LINK)) {
-    if (m[1] || code.some(([a, b]) => m.index >= a && m.index < b)) continue;
-    const target = parseHref(m[3]);
-    if (target) links.push({ text: plainText(m[2]), href: m[3], target });
-  }
-  return links;
-}
+type Target = LinkTarget;
 
 // --- Similarity -------------------------------------------------------------------
 
@@ -174,10 +131,6 @@ export interface DeadLink {
 
 const nameOf = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 
-const pageHref = (path: string, section?: string) => {
-  const base = `#/p/${path.split('/').map(encodeURIComponent).join('/')}`;
-  return section ? `${base}?${new URLSearchParams({ section })}` : base;
-};
 
 interface Context {
   pages: Set<string>;

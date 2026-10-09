@@ -16,6 +16,11 @@ function Badges({ v }: { v: PageVersion }) {
       {v.movedFrom && <span className="pill">Moved here</span>}
       {v.reviewId && <span className="pill">From a review</span>}
       {v.linkFix && <span className="pill">Link fix</span>}
+      {v.linksMovedFrom && (
+        <span className="pill" title={`Links to “${v.linksMovedFrom}” followed it to its new path`}>
+          Links updated
+        </span>
+      )}
     </span>
   );
 }
