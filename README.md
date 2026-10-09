@@ -1,7 +1,7 @@
 # pont
 Bridging the context between humans and agents
 
-See [USER-STORY.md](USER-STORY.md) for the product vision, MVP scope, and user stories.
+See [docs/](docs/README.md) for the [product overview](docs/overview.md), a [usage guide with examples](docs/usage.md), and [technical specifications](docs/technical.md) (including disk space), and [USER-STORY.md](USER-STORY.md) for the user stories.
 
 ## Quickstart
 
@@ -121,7 +121,7 @@ The ontology is built by two AI agents ([Strands Agents](https://strandsagents.c
 
 Every concept and relationship has its own page (`#/concept/<id>`, `#/relation/<id>`) where people can edit or delete it directly, add relationships, and see which pages link to it. Relationships can have a name and description (for example *Peanut Butter & Jelly*), and **＋ New concept** on the Ontology page adds one by hand.
 
-**Linking text to the ontology.** In a page, type `[[` followed by a few letters, or select text and press **⌘⇧K** (Ctrl+Shift+K) or click **◇ Link** in the page bar. A picker lists matching concepts and relationships (Ontology | Type | Description), with an option to create a new concept on the spot. The link is saved as plain Markdown, `[peanut butter](#/concept/peanut-butter)`, so agents can follow it with the `get_concept` MCP tool. ⌘-click (Ctrl-click) a link in the editor to open its concept.
+**Linking text to the ontology.** In a page, type `[[` followed by a few letters; select text and press **⌘⇧K** (Ctrl+Shift+K) or click **Ontology link** in the formatting toolbar; or type `/` and choose **Advanced → Ontology link**. A picker lists matching concepts and relationships (Ontology | Type | Description), with an option to create a new concept on the spot. The link is saved as plain Markdown, `[peanut butter](#/concept/peanut-butter)`, so agents can follow it with the `get_concept` MCP tool. ⌘-click (Ctrl-click) a link in the editor to open its concept.
 
 Only one calculation runs at a time, and it can be cancelled. If a run fails or is cancelled, the next one looks at the same changes again. Each agent call is capped in model calls, and every run records its token usage.
 
