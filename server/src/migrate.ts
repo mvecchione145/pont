@@ -179,6 +179,37 @@ export async function migrate(): Promise<void> {
       synced_at timestamptz NOT NULL DEFAULT now()
     );
 
+    -- Background checks of linked files: who linked it (whose token to use),
+    -- the file's latest blob SHA seen on the branch being edited (the pull
+    -- request's branch while one is open), and its ETag for cheap polling.
+    ALTER TABLE github_links ADD COLUMN IF NOT EXISTS linked_by_id text;
+    ALTER TABLE github_links ADD COLUMN IF NOT EXISTS remote_sha text;
+    ALTER TABLE github_links ADD COLUMN IF NOT EXISTS remote_etag text;
+    ALTER TABLE github_links ADD COLUMN IF NOT EXISTS checked_at timestamptz;
+
+    -- Every pull request pont opened for a linked page, and how it went.
+    CREATE TABLE IF NOT EXISTS github_pull_requests (
+      id            bigserial PRIMARY KEY,
+      page_path     text NOT NULL,
+      owner         text NOT NULL,
+      repo          text NOT NULL,
+      number        integer NOT NULL,
+      url           text NOT NULL,
+      branch        text NOT NULL,
+      title         text NOT NULL,
+      state         text NOT NULL DEFAULT 'open',
+      draft         boolean NOT NULL DEFAULT false,
+      review_state  text,
+      publishes     integer NOT NULL DEFAULT 1,
+      opened_by     text NOT NULL,
+      opened_by_id  text NOT NULL,
+      opened_at     timestamptz NOT NULL DEFAULT now(),
+      updated_at    timestamptz NOT NULL DEFAULT now(),
+      closed_at     timestamptz,
+      UNIQUE (owner, repo, number)
+    );
+    CREATE INDEX IF NOT EXISTS github_pull_requests_page ON github_pull_requests (page_path, opened_at DESC);
+
     CREATE TABLE IF NOT EXISTS page_moves (
       from_path text NOT NULL,
       to_path   text NOT NULL,

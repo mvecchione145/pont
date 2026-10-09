@@ -206,10 +206,24 @@ interface Props {
   beforeApply: () => Promise<boolean>;
   // Called after a suggestion was saved to the page, to reload the editor.
   onApplied: () => void;
+  // The page is linked to a file on GitHub: no link fixes are offered (links
+  // are edited in the GitHub file), and Apply edits the unpublished draft.
+  githubLinked?: boolean;
+  // Applies a suggestion to the draft in the editor; false if the quoted text
+  // isn't in the draft exactly once.
+  applyToDraft?: (quote: string, replacement: string) => boolean;
   onClose: () => void;
 }
 
-export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, onClose }: Props) {
+export function ReviewPanel({
+  path,
+  currentVersionId,
+  beforeApply,
+  onApplied,
+  githubLinked = false,
+  applyToDraft,
+  onClose,
+}: Props) {
   const [review, setReview] = useState<PageReview | null | undefined>(undefined);
   const [estimate, setEstimate] = useState<ReviewEstimate | null | undefined>(undefined);
   const [confirming, setConfirming] = useState(false);
@@ -218,7 +232,7 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
   const [error, setError] = useState<string | null>(null);
   const [showHandled, setShowHandled] = useState(false);
   // Dead links are checked without the LLM, as soon as the panel opens.
-  const dead = useDeadLinks(path);
+  const dead = useDeadLinks(path, !githubLinked);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,7 +262,10 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
     setConfirming(true);
     setEstimate(undefined);
     try {
-      if (!(await beforeApply())) throw new Error('Save the page first (it has unsaved changes that could not be saved).');
+      // GitHub-linked pages have no autosave to wait for: their draft stays in the editor.
+      if (!githubLinked && !(await beforeApply())) {
+        throw new Error('Save the page first (it has unsaved changes that could not be saved).');
+      }
       setEstimate(await api.reviewEstimate(path));
     } catch (err) {
       setConfirming(false);
@@ -274,6 +291,15 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
     setBusyItem(itemId);
     setError(null);
     try {
+      if (action === 'apply' && applyToDraft) {
+        // GitHub-linked page: edit the draft, then record the suggestion as applied.
+        const item = [...(review.result?.suggestions ?? []), ...(review.result?.conflicts ?? [])].find((x) => x.id === itemId);
+        if (!item || !applyToDraft(item.quote, item.replacement)) {
+          throw new Error("That text isn't in your draft any more (or appears more than once); edit it by hand.");
+        }
+        setReview(await api.decideReviewItem(review.id, itemId, 'accept'));
+        return;
+      }
       if (action === 'apply' && !(await beforeApply())) {
         throw new Error('Your latest edits could not be saved, so nothing was applied.');
       }
@@ -319,7 +345,7 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
 
       {error && <p className="down review-error">{error}</p>}
 
-      {dead.links && dead.links.length > 0 && !confirming && (
+      {!githubLinked && dead.links && dead.links.length > 0 && !confirming && (
         <div className="review-dead">
           <h3>Dead links ({dead.links.length})</h3>
           <DeadLinkList
@@ -444,7 +470,7 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
             </ul>
           )}
 
-          {result.links && (
+          {result.links && !githubLinked && (
             <>
               <h3>Missing links ({openLinks.length})</h3>
               {openLinks.length === 0 ? (

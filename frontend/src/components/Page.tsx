@@ -11,7 +11,7 @@ import {
 import { api, ApiError, type Entry, type GithubPage } from '../api';
 import { folderOf, href, nameOf, navigate } from '../route';
 import { ReviewPanel } from './ReviewPanel';
-import { GithubBar, PublishDialog, draftKey } from './GithubPage';
+import { GithubBar, PublishDialog, pullLabel, readDraft, writeDraft } from './GithubPage';
 // The editor (with CodeMirror for code blocks) is large, so load it on demand.
 const Editor = lazy(() => import('./Editor').then((m) => ({ default: m.Editor })));
 type EditorHandle = import('./Editor').EditorHandle;
@@ -76,7 +76,20 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
   const githubRef = useRef<GithubPage | null>(null);
   githubRef.current = github;
   const [draft, setDraft] = useState(false);
-  const [restoredDraft, setRestoredDraft] = useState(false);
+  // The draft started from an older version of the file than GitHub's.
+  const [staleDraft, setStaleDraft] = useState(false);
+  // GitHub has a newer version than the one loaded (found by polling).
+  const [remoteChanged, setRemoteChanged] = useState(false);
+  // A pull request status change noticed while the page was open.
+  const [githubNotice, setGithubNotice] = useState<string | null>(null);
+  // SHA of the GitHub version loaded into the editor, and of the version the
+  // current edits started from (sent with Publish, so a newer GitHub version
+  // isn't overwritten by accident).
+  const loadedSha = useRef<string | null>(null);
+  const editBaseSha = useRef<string | null>(null);
+  // Remounts the editor with new content without reloading the page (used
+  // when a review suggestion is applied to the draft).
+  const [editorVersion, setEditorVersion] = useState(0);
   const [publishing, setPublishing] = useState(false);
 
   // Autosave bookkeeping lives in refs so the editor's change handler never
@@ -109,21 +122,16 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
         if (gh) {
           // Start from the GitHub version (or the open pull request's), plus
           // any unpublished draft kept in this browser.
-          let content = gh.content;
-          let restored = false;
-          try {
-            const kept = localStorage.getItem(draftKey(at));
-            if (kept !== null && kept !== gh.content) {
-              content = kept;
-              restored = true;
-            }
-          } catch {
-            // No storage: no restored draft.
-          }
+          const kept = readDraft(at);
+          const restored = kept !== null && kept.content !== gh.content;
+          const content = restored ? kept.content : gh.content;
           saved.current = gh.content;
           latest.current = content;
+          loadedSha.current = gh.sha;
+          editBaseSha.current = restored ? (kept.sha ?? gh.sha) : gh.sha;
           setDraft(restored);
-          setRestoredDraft(restored);
+          setStaleDraft(Boolean(restored && kept.sha && gh.sha && kept.sha !== gh.sha));
+          setRemoteChanged(false);
           setEntry({ ...e, content });
         } else {
           latest.current = saved.current = e.content;
@@ -185,12 +193,8 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
       if (githubRef.current) {
         const dirty = markdown !== saved.current;
         setDraft(dirty);
-        try {
-          if (dirty) localStorage.setItem(draftKey(pathRef.current), markdown);
-          else localStorage.removeItem(draftKey(pathRef.current));
-        } catch {
-          // The draft just isn't kept across reloads.
-        }
+        if (!dirty) editBaseSha.current = loadedSha.current;
+        writeDraft(pathRef.current, dirty ? { content: markdown, sha: editBaseSha.current } : null);
         return;
       }
       if (blocked.current) return;
@@ -271,14 +275,10 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
       try {
         const moved = await api.moveEntry(from, target, version.current);
         pathRef.current = moved.path;
-        try {
-          const kept = localStorage.getItem(draftKey(from));
-          if (kept !== null) {
-            localStorage.setItem(draftKey(moved.path), kept);
-            localStorage.removeItem(draftKey(from));
-          }
-        } catch {
-          // nothing kept
+        const kept = readDraft(from);
+        if (kept) {
+          writeDraft(moved.path, kept);
+          writeDraft(from, null);
         }
         version.current = moved.versionId ?? null;
         setTitleError(null);
@@ -359,6 +359,60 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
       setSaveState('error');
     }
   }
+
+  // GitHub-linked pages: a review suggestion is applied to the unpublished
+  // draft in the editor (it reaches GitHub with the next Publish). The quote
+  // must appear exactly once; returns false when it doesn't.
+  const applyToDraft = useCallback((quote: string, replacement: string): boolean => {
+    const content = latest.current;
+    const at = content.indexOf(quote);
+    if (at < 0 || content.indexOf(quote, at + 1) >= 0) return false;
+    const updated = content.slice(0, at) + replacement + content.slice(at + quote.length);
+    latest.current = updated;
+    setDraft(updated !== saved.current);
+    writeDraft(pathRef.current, { content: updated, sha: editBaseSha.current });
+    setEntry((e) => e && { ...e, content: updated });
+    setEditorVersion((n) => n + 1);
+    return true;
+  }, []);
+
+  // GitHub-linked pages: check every 30 seconds (and when the window regains
+  // focus) whether GitHub has a newer version or the pull request's status
+  // changed. The server keeps this fresh in the background.
+  const githubPollKey = github ? pathRef.current : null;
+  useEffect(() => {
+    if (!githubPollKey) return;
+    let stopped = false;
+    const check = async () => {
+      const status = await api.githubPageStatus(pathRef.current).catch(() => null);
+      if (!status || stopped) return;
+      const before = githubRef.current?.pr ?? null;
+      if (before && !status.pr) {
+        const ended = status.pulls.find((p) => p.number === before.number);
+        setGithubNotice(
+          ended?.state === 'merged'
+            ? `Pull request #${before.number} was merged. Refresh to see the merged version.`
+            : `Pull request #${before.number} was closed without merging.`,
+        );
+        setRemoteChanged(true);
+      } else if (before && status.pr) {
+        const was = pullLabel(before);
+        const now = pullLabel(status.pr);
+        if (was.key !== now.key) setGithubNotice(`Pull request #${status.pr.number} is now: ${now.label}.`);
+      }
+      if (status.sha && loadedSha.current && status.sha !== loadedSha.current && status.pr?.number === before?.number) {
+        setRemoteChanged(true);
+      }
+      setGithub((g) => g && { ...g, pr: status.pr, pulls: status.pulls });
+    };
+    const timer = window.setInterval(check, 30_000);
+    window.addEventListener('focus', check);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', check);
+    };
+  }, [githubPollKey]);
 
   // Before a review reads or changes the page: save pending edits. False when
   // they can't be saved (e.g. someone else edited the page meanwhile).
@@ -488,16 +542,15 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
         <GithubBar
           github={github}
           draft={draft}
-          restoredDraft={restoredDraft}
+          staleDraft={staleDraft}
+          remoteChanged={remoteChanged}
+          notice={githubNotice}
+          onDismissNotice={() => setGithubNotice(null)}
           onDiscard={() => {
-            try {
-              localStorage.removeItem(draftKey(pathRef.current));
-            } catch {
-              // nothing kept
-            }
+            writeDraft(pathRef.current, null);
             setReloadCount((n) => n + 1);
           }}
-          onPull={async () => {
+          onRefresh={async () => {
             await api.githubPull(pathRef.current);
             setReloadCount((n) => n + 1);
           }}
@@ -508,18 +561,18 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
           path={pathRef.current}
           github={github}
           content={latest.current}
+          baseSha={editBaseSha.current}
           onClose={() => setPublishing(false)}
           onPublished={(result) => {
             setPublishing(false);
             saved.current = latest.current;
+            loadedSha.current = editBaseSha.current = result.sha;
             setDraft(false);
-            setRestoredDraft(false);
-            try {
-              localStorage.removeItem(draftKey(pathRef.current));
-            } catch {
-              // nothing kept
-            }
+            setStaleDraft(false);
+            setRemoteChanged(false);
+            writeDraft(pathRef.current, null);
             setGithub({ ...github, pr: result.pr, synced: null });
+            void api.githubPageStatus(pathRef.current).then((s) => s && setGithub((g) => g && { ...g, pulls: s.pulls }));
           }}
         />
       )}
@@ -592,7 +645,7 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
           <Suspense fallback={<p className="muted">Loading editor…</p>}>
             <Editor
               ref={editorRef}
-              key={reloadCount}
+              key={`${reloadCount}.${editorVersion}`}
               path={path}
               initialMarkdown={entry.content}
               onChange={onEdit}
@@ -609,6 +662,8 @@ export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChange
           currentVersionId={entry?.versionId ?? null}
           beforeApply={saveNow}
           onApplied={() => setReloadCount((n) => n + 1)}
+          githubLinked={Boolean(github)}
+          applyToDraft={github ? applyToDraft : undefined}
           onClose={() => setReviewing(false)}
         />
       )}

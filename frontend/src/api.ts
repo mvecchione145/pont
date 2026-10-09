@@ -185,6 +185,30 @@ export interface GithubStatus {
   callbackUrl: string;
 }
 
+export type PullState = 'open' | 'merged' | 'closed';
+
+export interface PullStatus {
+  number: number;
+  url: string;
+  branch: string;
+  state: PullState;
+  draft: boolean;
+  reviewState: 'approved' | 'changes_requested' | null;
+}
+
+export interface PullLogEntry {
+  number: number;
+  url: string;
+  title: string;
+  state: PullState;
+  draft: boolean;
+  reviewState: 'approved' | 'changes_requested' | null;
+  publishes: number;
+  openedBy: string;
+  openedAt: string;
+  closedAt: string | null;
+}
+
 // A page linked to a file in a GitHub repository (see server/src/github/).
 export interface GithubPage {
   owner: string;
@@ -193,15 +217,26 @@ export interface GithubPage {
   filePath: string;
   fileUrl: string;
   content: string;
-  pr: { number: number; url: string; branch: string } | null;
+  // Blob SHA of that content, to notice when GitHub has a newer version.
+  sha: string | null;
+  pr: PullStatus | null;
+  pulls: PullLogEntry[];
   canPublish: boolean;
   synced: 'merged' | 'updated' | null;
+  warning: string | null;
+}
+
+export interface GithubPageStatus {
+  sha: string | null;
+  pr: PullStatus | null;
+  pulls: PullLogEntry[];
 }
 
 export interface GithubPublishResult {
-  pr: { number: number; url: string; branch: string };
+  pr: PullStatus;
   opened: boolean;
   commitUrl: string;
+  sha: string;
 }
 
 export interface OntologyHit {
@@ -386,6 +421,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    // A machine-readable reason some endpoints add, e.g. "stale".
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -395,7 +432,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(path, init);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new ApiError(res.status, body?.error ?? `Request failed (${res.status})`);
+    throw new ApiError(res.status, body?.error ?? `Request failed (${res.status})`, body?.code);
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }
@@ -478,7 +515,7 @@ export const api = {
     request<ReviewEstimate | null>(`/api/reviews/estimate?path=${encodeURIComponent(path)}`),
   startReview: (path: string) => request<PageReview>('/api/reviews', json('POST', { path })),
   review: (id: string) => request<PageReview>(`/api/reviews/${id}`),
-  decideReviewItem: (id: string, item: string, action: 'apply' | 'dismiss') =>
+  decideReviewItem: (id: string, item: string, action: 'apply' | 'accept' | 'dismiss') =>
     request<PageReview>(`/api/reviews/${id}/items/${item}`, json('POST', { action })),
   ontology: () => request<Ontology>('/api/ontology'),
   ontologyChanges: () => request<ChangePreview>('/api/ontology/changes'),
@@ -531,8 +568,20 @@ export const api = {
   githubLink: (body: { url?: string; owner?: string; repo?: string; branch?: string; path?: string; pagePath?: string }) =>
     request<{ pagePath: string }>('/api/github/links', json('POST', body)),
   githubPage: (path: string) => request<GithubPage | null>(`/api/github/pages?${new URLSearchParams({ path })}`),
-  githubPublish: (path: string, content: string, title: string, description: string) =>
-    request<GithubPublishResult>('/api/github/pages/publish', json('POST', { path, content, title, description })),
+  githubPageStatus: (path: string) =>
+    request<GithubPageStatus | null>(`/api/github/pages/status?${new URLSearchParams({ path })}`),
+  githubPublish: (
+    path: string,
+    content: string,
+    title: string,
+    description: string,
+    baseSha: string | null,
+    force = false,
+  ) =>
+    request<GithubPublishResult>(
+      '/api/github/pages/publish',
+      json('POST', { path, content, title, description, baseSha: baseSha ?? undefined, force }),
+    ),
   githubPull: (path: string) => request<GithubPage>('/api/github/pages/pull', json('POST', { path })),
   githubUnlink: (path: string) => request<void>(`/api/github/pages?${new URLSearchParams({ path })}`, { method: 'DELETE' }),
   searchLinkTargets: (q: string, from: string) =>

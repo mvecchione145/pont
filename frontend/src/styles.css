@@ -2633,3 +2633,68 @@ select {
   font-weight: 600;
   margin: 1.5rem 0 0.5rem;
 }
+
+/* GitHub pull request status */
+
+.pr-chip {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  background: color-mix(in srgb, #1f883d 14%, transparent);
+  color: #1a7f37;
+}
+
+.pr-chip.draft,
+.pr-chip.closed {
+  background: var(--hover);
+  color: var(--fg-soft);
+}
+
+.pr-chip.approved {
+  background: color-mix(in srgb, #1f883d 22%, transparent);
+}
+
+.pr-chip.changes_requested {
+  background: color-mix(in srgb, var(--down) 15%, transparent);
+  color: var(--down);
+}
+
+.pr-chip.merged {
+  background: color-mix(in srgb, #8250df 15%, transparent);
+  color: #8250df;
+}
+
+.github-changed {
+  background: var(--warn-bg);
+}
+
+.github-notice {
+  background: color-mix(in srgb, #8250df 10%, transparent);
+}
+
+.github-log {
+  margin: 0.5rem 1rem 0;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.pr-log {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pr-log li {
+  padding: 0.3rem 0;
+}
+
+.link-button.inline {
+  margin: 0;
+  font-size: inherit;
+}

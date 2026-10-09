@@ -9,6 +9,8 @@ export class GithubError extends Error {
   constructor(
     message: string,
     readonly status: 400 | 401 | 403 | 404 | 409 | 422 | 502 | 503 = 502,
+    // A machine-readable reason, e.g. "stale" (the file changed under a draft).
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -101,6 +103,41 @@ export async function getFile(token: string, owner: string, repo: string, path: 
   return { content: Buffer.from(file.content, 'base64').toString('utf8'), sha: file.sha, htmlUrl: file.html_url };
 }
 
+// The file's current blob SHA on a branch: a git hash of its content, so it
+// changes exactly when the file does. With the ETag from last time, GitHub
+// answers "304 Not Modified" when nothing changed, which doesn't count
+// against the rate limit, so polling every minute is cheap.
+export async function fileVersion(
+  token: string,
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+  etag?: string | null,
+): Promise<{ changed: false } | { changed: true; sha: string; etag: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch(`${config.github.apiUrl}${repoPath(owner, repo)}/contents/${enc(path)}?${new URLSearchParams({ ref })}`, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'pont',
+        ...(etag ? { 'If-None-Match': etag } : {}),
+      },
+    });
+  } catch {
+    throw new GithubError('Could not reach GitHub.', 503);
+  }
+  if (res.status === 304) return { changed: false };
+  if (!res.ok) {
+    const detail = ((await res.json().catch(() => ({}))) as { message?: string }).message ?? res.statusText;
+    throw new GithubError(`GitHub (${res.status}): ${detail}`, res.status === 404 ? 404 : res.status === 401 ? 401 : 502);
+  }
+  const body = (await res.json()) as { sha: string };
+  return { changed: true, sha: body.sha, etag: res.headers.get('etag') };
+}
+
 export async function branchHead(token: string, owner: string, repo: string, branch: string): Promise<string> {
   const ref = await call<{ object: { sha: string } }>(token, 'GET', `${repoPath(owner, repo)}/git/ref/heads/${enc(branch)}`);
   return ref.object.sha;
@@ -137,14 +174,45 @@ export interface Pull {
   url: string;
   state: 'open' | 'closed';
   merged: boolean;
+  draft: boolean;
 }
 
-const toPull = (p: { number: number; html_url: string; state: 'open' | 'closed'; merged?: boolean; merged_at?: string | null }): Pull => ({
+const toPull = (p: {
+  number: number;
+  html_url: string;
+  state: 'open' | 'closed';
+  merged?: boolean;
+  merged_at?: string | null;
+  draft?: boolean;
+}): Pull => ({
   number: p.number,
   url: p.html_url,
   state: p.state,
   merged: Boolean(p.merged ?? p.merged_at),
+  draft: Boolean(p.draft),
 });
+
+export type ReviewState = 'approved' | 'changes_requested' | null;
+
+// The pull request's review decision: changes requested if any reviewer's
+// latest review asks for them, otherwise approved if any approved.
+export async function reviewState(token: string, owner: string, repo: string, number: number): Promise<ReviewState> {
+  const reviews = await call<{ user: { login: string } | null; state: string }[]>(
+    token,
+    'GET',
+    `${repoPath(owner, repo)}/pulls/${number}/reviews?per_page=100`,
+  );
+  const latest = new Map<string, string>();
+  for (const r of reviews) {
+    if (r.user && (r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED' || r.state === 'DISMISSED')) {
+      latest.set(r.user.login, r.state);
+    }
+  }
+  const states = [...latest.values()];
+  if (states.includes('CHANGES_REQUESTED')) return 'changes_requested';
+  if (states.includes('APPROVED')) return 'approved';
+  return null;
+}
 
 export async function createPull(
   token: string,

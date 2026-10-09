@@ -98,11 +98,15 @@ function decodeTarget(link: string): string {
 }
 
 // Dead links on one page, for its Review panel. Loads on its own (no LLM).
-export function useDeadLinks(path: string) {
+export function useDeadLinks(path: string, enabled = true) {
   const [links, setLinks] = useState<DeadLink[] | null>(null);
   const load = useCallback(() => {
+    if (!enabled) {
+      setLinks([]);
+      return;
+    }
     api.deadLinks(path).then(setLinks, () => setLinks([]));
-  }, [path]);
+  }, [path, enabled]);
   useEffect(load, [load]);
   return { links, reload: load };
 }

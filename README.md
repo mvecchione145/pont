@@ -105,6 +105,12 @@ Link a Markdown file in a GitHub repository (a README, or anything under `docs/`
 
 **Edit and publish.** Linked pages **don't autosave**: edits are a draft (kept in your browser, so a reload doesn't lose them) until you click **Publish**. The first publish commits your change to a new `pont/…` branch and opens a pull request into the linked branch, as you; later publishes add commits to the same pull request while it's open, and the editor shows the pull request's version meanwhile. When the pull request is merged (or the file changes on the branch), pont pulls the new content the next time someone opens the page, or right away with **Pull latest**. Pages show *From GitHub* versions in their history.
 
+**Pull request status and history.** The page bar shows the open pull request's status (*Open*, *Draft*, *Approved*, *Changes requested*) and lists every pull request pont opened for the page, with who opened it, how many publishes went into it, and how it ended. When the status changes, or the pull request is merged or closed, an open page says so.
+
+**Changes on GitHub.** pont checks each linked file about once a minute using the file's blob SHA (a hash GitHub returns that changes whenever the file does, with ETags so an unchanged file costs nothing against GitHub's rate limit). Changes on the linked branch, including merges, are pulled into pont automatically; a page open in the editor asks you to **Refresh** instead of replacing what you're looking at. If the file changed on GitHub since your draft started, **Publish** warns you instead of overwriting the change, and offers **Publish anyway**.
+
+**Reviews on linked pages.** The ✦ Review panel doesn't offer link fixes (dead links, missing ontology links) for linked pages, and **Apply** edits your unpublished draft rather than saving the page; it reaches GitHub with your next Publish.
+
 Linked pages can only change through Publish: other ways of saving (agent proposals, review suggestions, link fixes) are refused for them, so pont never drifts from the repository. Branches whose names contain `/` need the repository, branch, and file entered separately rather than a pasted link.
 
 ### Page history

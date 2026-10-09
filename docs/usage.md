@@ -279,5 +279,8 @@ Keep a repository's README (or any Markdown file in it) in pont, and send edits 
 4. Edit it. The status shows **Unpublished changes**; nothing is saved until you publish (your draft survives a reload, and **Discard changes** throws it away).
 5. Click **Publish**, give the pull request a title (and a description), and **Open pull request**. pont commits to a new `pont/readme-…` branch and opens the pull request as you. The page now shows *In pull request #1*.
 6. More edits? Publish again: they're added to the same pull request.
-7. Once the pull request is merged on GitHub, the next time the page opens pont shows the merged version (*The pull request was merged*), and search and agents see it.
+7. The page bar shows the pull request's status (*Open*, *Approved*, *Changes requested*, …) and **Pull requests (n)** lists every one opened for the page. When the status changes, the page tells you.
+8. Once the pull request is merged on GitHub, pont pulls the merged version within about a minute, and an open page asks you to **Refresh**. Search and agents see it from then on.
+9. If someone changes the file on GitHub while you're editing, the page asks you to **Refresh** (your draft is kept), and **Publish** warns you before it would overwrite their change.
+10. In the **✦ Review** panel, **Apply** edits your draft, and link fixes aren't offered for linked pages.
 

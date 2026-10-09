@@ -323,6 +323,17 @@ Brings documentation that lives next to code (READMEs, `docs/` folders) into pon
 - [x] The first publish opens a pull request from a new branch, as me; later publishes add commits to the same open pull request
 - [x] Other kinds of saves (agent proposals, review suggestions, link fixes) are refused for linked pages, so pont never drifts from the repository
 
+**10.4** As a **Domain Expert**, I want to see the status and history of the pull requests for a linked page, so that I know where my changes stand.
+- [x] The page shows the open pull request's status (open, draft, approved, changes requested) and a log of every pull request opened for it
+- [x] An open page tells me when the status changes, or the pull request is merged or closed
+
+**10.5** As a **Domain Expert**, I want to know when the file changes on GitHub, so that I don't edit or publish over someone else's change.
+- [x] pont checks each linked file in the background by its blob SHA (with ETags), pulls changes on the linked branch, and asks open pages to refresh
+- [x] Publish warns when the file changed since my draft started, and offers to publish anyway
+
+**10.6** As a **Domain Expert**, I want reviews to work on linked pages.
+- [x] Apply edits the unpublished draft; link fixes (dead links, missing ontology links) aren't offered for linked pages
+
 ## Decisions made along the way
 
 - **Copy Onyx's ideas, not its code.** pont reimplements hybrid search and chunking in TypeScript rather than depending on Onyx.

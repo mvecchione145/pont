@@ -6,6 +6,7 @@ import { getSettings } from './llm/settings.js';
 import { structured } from './llm/structured.js';
 import { priceFor } from './ontology/runs.js';
 import { readOntology } from './ontology/store.js';
+import { isLinked } from './github/service.js';
 import { addLink, alreadyLinks, findMention, linkCandidates, type LinkCandidate, type LinkKind } from './review-links.js';
 import { chunkMarkdown } from './search/chunker.js';
 import { search, SearchUnavailableError } from './search/search.js';
@@ -334,7 +335,10 @@ async function loadPage(path: string) {
 
 const uniquePaths = (passages: RelatedPassage[]) => [...new Set(passages.map((p) => p.path))];
 
-async function candidatesFor(content: string): Promise<LinkCandidate[]> {
+// Pages linked to GitHub get no ontology link suggestions: their links are
+// edited in the GitHub file, not fixed from pont.
+async function candidatesFor(path: string, content: string): Promise<LinkCandidate[]> {
+  if (await isLinked(path)) return [];
   return linkCandidates(content, (await readOntology()).ontology);
 }
 
@@ -344,7 +348,7 @@ export async function estimateReview(path: string): Promise<ReviewEstimate | nul
   const settings = await getSettings().catch(() => null);
   if (!settings) return null;
   const entry = await loadPage(path);
-  const [passages, candidates] = await Promise.all([relatedPassages(path, entry.content), candidatesFor(entry.content)]);
+  const [passages, candidates] = await Promise.all([relatedPassages(path, entry.content), candidatesFor(path, entry.content)]);
   const prompt = userPrompt(path, entry.content, passages, candidates);
   const inputTokens = Math.round((SYSTEM.length + prompt.length) / CHARS_PER_TOKEN) + 1500;
   const cost = priceFor(settings.model, inputTokens, OUTPUT_TOKENS);
@@ -394,7 +398,7 @@ export async function startReview(path: string, user: User): Promise<Review> {
 async function execute(id: string, path: string, content: string): Promise<void> {
   const settings = (await getSettings())!;
   try {
-    const [passages, candidates] = await Promise.all([relatedPassages(path, content), candidatesFor(content)]);
+    const [passages, candidates] = await Promise.all([relatedPassages(path, content), candidatesFor(path, content)]);
     await db.query('UPDATE page_reviews SET compared = $2 WHERE id = $1', [id, JSON.stringify(uniquePaths(passages))]);
     const { data, usage } = await structured(settings, {
       system: SYSTEM,
@@ -497,7 +501,15 @@ function check(
 
 // Applies a suggestion (or a conflict's fix) to the page as a new version, or
 // dismisses it. The page is read fresh, so the quote must still be there.
-export async function decideItem(id: string, itemId: string, action: 'apply' | 'dismiss', user: User): Promise<Review> {
+// "apply" saves the change to the page as a new version. "accept" only marks
+// it applied: for pages linked to GitHub, where the editor applies it to the
+// unpublished draft instead (it reaches GitHub with the next Publish).
+export async function decideItem(
+  id: string,
+  itemId: string,
+  action: 'apply' | 'accept' | 'dismiss',
+  user: User,
+): Promise<Review> {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -538,7 +550,7 @@ export async function decideItem(id: string, itemId: string, action: 'apply' | '
       const saved = await saveEntry(review.path, updated, entry.versionId ?? null, user, { 'review-id': id });
       versionId = saved.versionId ?? null;
     }
-    item.state = action === 'apply' ? 'applied' : 'dismissed';
+    item.state = action === 'dismiss' ? 'dismissed' : 'applied';
     await client.query('UPDATE page_reviews SET result = $2, version_id = $3 WHERE id = $1', [
       id,
       JSON.stringify(review.result),

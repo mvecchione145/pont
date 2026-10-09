@@ -3,7 +3,7 @@ import { config } from '../config.js';
 import { EntryError, parsePath } from '../entries.js';
 import { GithubError } from '../github/api.js';
 import { GithubAppError, removeApp, saveApp } from '../github/app.js';
-import { connectUrl, disconnect, finishConnect, linkFile, pageState, publish, pullLatest, status, unlink } from '../github/service.js';
+import { connectUrl, disconnect, finishConnect, linkFile, pageState, pageStatus, publish, pullLatest, status, unlink } from '../github/service.js';
 
 // GET    /api/github/status                       is GitHub set up, and connected for me?
 // PUT    /api/github/app { clientId, clientSecret? }  set the OAuth App (unless set by env)
@@ -13,7 +13,8 @@ import { connectUrl, disconnect, finishConnect, linkFile, pageState, publish, pu
 // DELETE /api/github/connection                   disconnect my account
 // POST   /api/github/links { url | owner, repo, branch, path, pagePath }
 // GET    /api/github/pages?path=P                 the page's link, or null
-// POST   /api/github/pages/publish { path, content, title, description }
+// GET    /api/github/pages/status?path=P          what an open page polls: SHA and pull request
+// POST   /api/github/pages/publish { path, content, title, description, baseSha, force }
 // POST   /api/github/pages/pull { path }          pull the latest from GitHub
 // DELETE /api/github/pages?path=P                 unlink (the page stays)
 
@@ -76,14 +77,20 @@ githubRouter.get('/pages', async (req, res) => {
   res.json(await pageState(req.user!, pathOf(req.query.path)));
 });
 
+githubRouter.get('/pages/status', async (req, res) => {
+  res.json(await pageStatus(pathOf(req.query.path)));
+});
+
 githubRouter.post('/pages/publish', async (req, res) => {
-  const { path, content, title, description } = (req.body ?? {}) as Record<string, unknown>;
+  const { path, content, title, description, baseSha, force } = (req.body ?? {}) as Record<string, unknown>;
   if (typeof content !== 'string') throw new GithubError('"content" is required.', 400);
   res.json(
     await publish(req.user!, pathOf(path), {
       content,
       title: typeof title === 'string' ? title : undefined,
       description: typeof description === 'string' ? description : undefined,
+      baseSha: typeof baseSha === 'string' ? baseSha : undefined,
+      force: force === true,
     }),
   );
 });
@@ -97,9 +104,12 @@ githubRouter.delete('/pages', async (req, res) => {
   res.status(204).end();
 });
 
-export const githubErrors: ErrorRequestHandler = (err, _req, res, next) => {
+export const githubErrors: ErrorRequestHandler = (err, req, res, next) => {
   if (err instanceof GithubError || err instanceof GithubAppError || err instanceof EntryError) {
-    res.status(err.status).json({ error: err.message });
+    // Logged too, so GitHub problems (no access, an app not installed, ...)
+    // show up in the server logs, not only in the browser.
+    console.warn(`github: ${req.method} ${req.originalUrl.split('?')[0]} → ${err.status}: ${err.message}`);
+    res.status(err.status).json({ error: err.message, ...(err instanceof GithubError && err.code ? { code: err.code } : {}) });
     return;
   }
   next(err);

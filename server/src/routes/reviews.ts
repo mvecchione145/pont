@@ -10,7 +10,7 @@ import { decideItem, estimateReview, getReview, latestReview, ReviewError, start
 // GET  /api/reviews/estimate?path=P   -> what a review would send and cost
 // POST /api/reviews { path }          -> starts a review (runs in the background)
 // GET  /api/reviews/:id               -> one review, to poll while it runs
-// POST /api/reviews/:id/items/:item { action: "apply" | "dismiss" }
+// POST /api/reviews/:id/items/:item { action: "apply" | "accept" | "dismiss" }
 export const reviewsRouter = Router();
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -41,7 +41,9 @@ reviewsRouter.get('/:id', async (req, res) => {
 
 reviewsRouter.post('/:id/items/:item', async (req, res) => {
   const action = req.body?.action;
-  if (action !== 'apply' && action !== 'dismiss') throw new ReviewError('"action" must be "apply" or "dismiss".');
+  if (action !== 'apply' && action !== 'accept' && action !== 'dismiss') {
+    throw new ReviewError('"action" must be "apply", "accept", or "dismiss".');
+  }
   res.json(await decideItem(reviewId(req.params.id), req.params.item, action, req.user!));
 });
 
