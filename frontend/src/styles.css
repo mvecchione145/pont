@@ -1915,10 +1915,6 @@ button.row-main.row:hover {
   min-width: 9rem;
 }
 
-.new-concept {
-  margin-bottom: 0.75rem;
-}
-
 .relation-edit-row {
   display: flex;
   gap: 0.6rem;
@@ -2303,4 +2299,14 @@ select {
 
 .review-dead {
   margin-bottom: 1rem;
+}
+
+.calculate-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ontology > .new-concept-form {
+  margin: 0 0 1rem;
 }

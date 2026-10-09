@@ -267,9 +267,11 @@ function ConceptList({ ontology }: { ontology: Ontology }) {
 
   return (
     <>
-      <NewConcept />
       {ontology.concepts.length === 0 && (
-        <p className="muted">No concepts yet. Add one, or Calculate to get recommendations and approve the ones you agree with.</p>
+        <p className="muted">
+          No concepts yet. Add one with ＋ New concept, or Calculate to get recommendations and approve the ones you agree
+          with.
+        </p>
       )}
       <input className="concept-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter concepts" />
       {types.map((type) => (
@@ -318,19 +320,12 @@ function ConceptList({ ontology }: { ontology: Ontology }) {
   );
 }
 
-function NewConcept() {
-  const [open, setOpen] = useState(false);
+// Opened from the "＋ New concept" button next to Calculate.
+function NewConceptForm({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('Term');
   const [definition, setDefinition] = useState('');
   const [error, setError] = useState<string | null>(null);
-  if (!open) {
-    return (
-      <button className="new-concept" onClick={() => setOpen(true)}>
-        ＋ New concept
-      </button>
-    );
-  }
   return (
     <form
       className="new-concept-form"
@@ -354,7 +349,7 @@ function NewConcept() {
       <button type="submit" className="primary">
         Create
       </button>
-      <button type="button" onClick={() => setOpen(false)}>
+      <button type="button" onClick={onClose}>
         Cancel
       </button>
       {error && <span className="down">{error}</span>}
@@ -374,6 +369,7 @@ export function OntologyPage() {
   const [notices, setNotices] = useState<Record<string, { ok: boolean; message: string }>>({});
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [creatingConcept, setCreatingConcept] = useState(false);
 
   const active = runs.find((r) => r.status === 'running');
 
@@ -486,9 +482,14 @@ export function OntologyPage() {
           </p>
         </div>
         <div className="calculate">
-          <button className="primary" disabled={!canCalculate} onClick={() => setConfirming(true)}>
-            Calculate
-          </button>
+          <div className="calculate-buttons">
+            <button onClick={() => setCreatingConcept(true)} disabled={creatingConcept}>
+              ＋ New concept
+            </button>
+            <button className="primary" disabled={!canCalculate} onClick={() => setConfirming(true)}>
+              Calculate
+            </button>
+          </div>
           <span className="muted hint">
             {!preview
               ? 'Checking for changes…'
@@ -502,6 +503,8 @@ export function OntologyPage() {
           </span>
         </div>
       </div>
+
+      {creatingConcept && <NewConceptForm onClose={() => setCreatingConcept(false)} />}
 
       {error && (
         <div className="banner">
@@ -536,21 +539,20 @@ export function OntologyPage() {
         </p>
       )}
 
-      <section>
-        <div className="review-head">
-          <h2 className="section-heading">Review ({recs.length})</h2>
-          {!active && <BulkActions items={recs} scope="all" onDone={decideAll} />}
-        </div>
-        {summary && (
-          <div className="banner bulk-summary">
-            <span>{summary}</span>
-            <button onClick={() => setSummary(null)}>Dismiss</button>
+      {/* Only when there is something to review (or the result of Approve all to show). */}
+      {(recs.length > 0 || summary) && (
+        <section>
+          <div className="review-head">
+            <h2 className="section-heading">Review ({recs.length})</h2>
+            {!active && <BulkActions items={recs} scope="all" onDone={decideAll} />}
           </div>
-        )}
-        {recs.length === 0 ? (
-          <p className="muted">No recommendations waiting for review.</p>
-        ) : (
-          groups
+          {summary && (
+            <div className="banner bulk-summary">
+              <span>{summary}</span>
+              <button onClick={() => setSummary(null)}>Dismiss</button>
+            </div>
+          )}
+          {groups
             .filter(([, , items]) => items.length)
             .map(([key, label, items]) => (
               <div key={key} className="rec-group">
@@ -567,11 +569,11 @@ export function OntologyPage() {
                       )}
                     </Fragment>
                   ))}
-                </ul>
-              </div>
-            ))
-        )}
-      </section>
+                  </ul>
+                </div>
+              ))}
+        </section>
+      )}
 
       <section>
         <h2 className="section-heading">
