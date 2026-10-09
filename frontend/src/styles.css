@@ -2197,3 +2197,80 @@ select {
   border-radius: 3px;
   padding: 0 1px;
 }
+
+/* The Review button shimmers (a light sweep across the label, and a twinkle
+   on the spark) so it is easy to notice. It stays still while the panel is
+   open, and for people who prefer reduced motion. */
+
+.review-button .review-spark {
+  display: inline-block;
+  color: var(--accent);
+  animation: review-twinkle 4s ease-in-out infinite;
+}
+
+.review-button .review-label {
+  background: linear-gradient(
+    100deg,
+    var(--fg-soft) 0%,
+    var(--fg-soft) 40%,
+    var(--accent) 50%,
+    var(--fg-soft) 60%,
+    var(--fg-soft) 100%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: review-shimmer 4s ease-in-out infinite;
+}
+
+@keyframes review-shimmer {
+  0%,
+  45% {
+    background-position: 100% 0;
+  }
+  75%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+@keyframes review-twinkle {
+  0%,
+  50%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.85;
+  }
+  62% {
+    transform: scale(1.35) rotate(45deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1) rotate(90deg);
+    opacity: 0.85;
+  }
+}
+
+.review-button:hover .review-label,
+.review-button.active .review-label {
+  animation: none;
+  background: none;
+  color: var(--fg);
+}
+
+.review-button.active .review-spark {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-button .review-spark,
+  .review-button .review-label {
+    animation: none;
+  }
+  .review-button .review-label {
+    background: none;
+    color: var(--accent);
+  }
+}

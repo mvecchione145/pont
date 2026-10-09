@@ -327,12 +327,15 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
         <div className="page-bar-right">
           <span className={`save-status ${saveState}`}>{status}</span>
           <button
-            className={`bar-button ${reviewing ? 'active' : ''}`}
-            title="Suggestions to make this page clearer, and conflicts with other pages"
+            className={`bar-button review-button ${reviewing ? 'active' : ''}`}
+            title="Suggestions to make this page clearer, conflicts with other pages, and missing ontology links"
             aria-pressed={reviewing}
             onClick={() => setReviewing(!reviewing)}
           >
-            ✦ Review
+            <span className="review-spark" aria-hidden>
+              ✦
+            </span>{' '}
+            <span className="review-label">Review</span>
           </button>
           <div className="menu-anchor">
             <button
