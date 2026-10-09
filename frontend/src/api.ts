@@ -207,6 +207,7 @@ export interface PullLogEntry {
   openedBy: string;
   openedAt: string;
   closedAt: string | null;
+  branchDeleted: boolean;
 }
 
 // A page linked to a file in a GitHub repository (see server/src/github/).

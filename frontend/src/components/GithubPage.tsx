@@ -81,6 +81,7 @@ function PullLog({ pulls }: { pulls: PullLogEntry[] }) {
             · opened by {p.openedBy} on {new Date(p.openedAt).toLocaleDateString()}
             {p.publishes > 1 && ` · ${p.publishes} publishes`}
             {p.closedAt && ` · ${p.state} ${new Date(p.closedAt).toLocaleDateString()}`}
+            {p.branchDeleted && ' · branch deleted'}
           </span>
         </li>
       ))}

@@ -204,6 +204,8 @@ export interface PullLogEntry {
   openedBy: string;
   openedAt: string;
   closedAt: string | null;
+  // pont deleted the pull request's branch after it was merged.
+  branchDeleted: boolean;
 }
 
 interface PullRow {
@@ -218,6 +220,11 @@ interface PullRow {
   opened_by_id: string;
   opened_at: Date;
   closed_at: Date | null;
+  owner: string;
+  repo: string;
+  branch: string;
+  page_path: string;
+  branch_deleted: boolean;
 }
 
 const toEntry = (r: PullRow): PullLogEntry => ({
@@ -231,6 +238,7 @@ const toEntry = (r: PullRow): PullLogEntry => ({
   openedBy: r.opened_by,
   openedAt: r.opened_at.toISOString(),
   closedAt: r.closed_at?.toISOString() ?? null,
+  branchDeleted: r.branch_deleted,
 });
 
 async function pullLog(path: string): Promise<PullLogEntry[]> {
@@ -303,13 +311,50 @@ async function refreshPull(link: LinkRow, token: string, actor: User): Promise<{
   }
   if (state !== 'open') {
     await clearPull(link);
-    if (state === 'merged') await syncBase(link, token, actor);
+    if (state === 'merged') {
+      await syncBase(link, token, actor);
+      await deleteMergedBranches(token, { owner: link.owner, repo: link.repo, number });
+    }
   }
   if (before && before.state !== state) {
     console.log(`github: ${describe(link, number)} ${state}`);
     return { from: before.state, to: state };
   }
   return null;
+}
+
+// --- Cleaning up merged branches -------------------------------------------------------
+
+// Deletes the pont/... branches of merged pull requests (like GitHub's
+// "automatically delete head branches"). Branches of pull requests closed
+// without merging are kept, so they can be reopened. Only branches pont made
+// (named pont/...) are ever deleted. "only" limits it to one pull request.
+export async function deleteMergedBranches(
+  token: string | null,
+  only?: { owner: string; repo: string; number: number },
+): Promise<void> {
+  const { rows } = await db.query<PullRow>(
+    `SELECT * FROM github_pull_requests
+     WHERE state = 'merged' AND NOT branch_deleted AND branch LIKE 'pont/%'
+       ${only ? 'AND owner = $1 AND repo = $2 AND number = $3' : ''}`,
+    only ? [only.owner, only.repo, only.number] : [],
+  );
+  for (const pr of rows) {
+    const account = token ? { token } : ((await accountById(pr.opened_by_id)) ?? (await accountById(null)));
+    if (!account) continue;
+    try {
+      await deleteBranch(account.token, pr.owner, pr.repo, pr.branch);
+      console.log(`github: deleted merged branch ${pr.branch} of ${pr.owner}/${pr.repo}#${pr.number}`);
+    } catch (err) {
+      // Already gone (deleted on GitHub, or by GitHub's own auto-delete) is fine.
+      const gone = err instanceof GithubError && (err.status === 404 || /reference does not exist/i.test(err.message));
+      if (!gone) {
+        console.warn(`github: couldn't delete ${pr.branch} of ${pr.owner}/${pr.repo}#${pr.number}:`, err instanceof Error ? err.message : err);
+        continue;
+      }
+    }
+    await db.query('UPDATE github_pull_requests SET branch_deleted = true WHERE id = $1', [(pr as PullRow & { id: string }).id]);
+  }
 }
 
 // --- Page state ------------------------------------------------------------------------
@@ -567,6 +612,8 @@ async function pollOnce(): Promise<void> {
   polling = true;
   try {
     const { rows: links } = await db.query<LinkRow>('SELECT * FROM github_links');
+    // Branches of pull requests merged earlier (or before this was added).
+    await deleteMergedBranches(null).catch((err) => console.warn('github: branch cleanup:', err instanceof Error ? err.message : err));
     for (const link of links) {
       try {
         const opener = link.pr_number ? (await pullRow(link, link.pr_number))?.opened_by_id ?? null : null;

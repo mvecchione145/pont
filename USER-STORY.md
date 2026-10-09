@@ -326,6 +326,7 @@ Brings documentation that lives next to code (READMEs, `docs/` folders) into pon
 **10.4** As a **Domain Expert**, I want to see the status and history of the pull requests for a linked page, so that I know where my changes stand.
 - [x] The page shows the open pull request's status (open, draft, approved, changes requested) and a log of every pull request opened for it
 - [x] An open page tells me when the status changes, or the pull request is merged or closed
+- [x] pont deletes the `pont/…` branch of a merged pull request (closed, unmerged ones keep theirs)
 
 **10.5** As a **Domain Expert**, I want to know when the file changes on GitHub, so that I don't edit or publish over someone else's change.
 - [x] pont checks each linked file in the background by its blob SHA (with ETags), pulls changes on the linked branch, and asks open pages to refresh

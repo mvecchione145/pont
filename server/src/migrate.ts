@@ -209,6 +209,8 @@ export async function migrate(): Promise<void> {
       UNIQUE (owner, repo, number)
     );
     CREATE INDEX IF NOT EXISTS github_pull_requests_page ON github_pull_requests (page_path, opened_at DESC);
+    -- pont deletes its own pont/... branch once the pull request is merged.
+    ALTER TABLE github_pull_requests ADD COLUMN IF NOT EXISTS branch_deleted boolean NOT NULL DEFAULT false;
 
     CREATE TABLE IF NOT EXISTS page_moves (
       from_path text NOT NULL,
