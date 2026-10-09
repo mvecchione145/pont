@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
-import { api, type PageReview, type ReviewConflict, type ReviewEstimate, type ReviewSuggestion } from '../api';
+import {
+  api,
+  type PageReview,
+  type ReviewConflict,
+  type ReviewEstimate,
+  type ReviewLink,
+  type ReviewSuggestion,
+} from '../api';
 import { href } from '../route';
 
 // The page review side panel: asks before spending on the LLM, runs the review
-// in the background, and lists suggestions and conflicts that can be applied
-// to the page (as a new version) or dismissed.
+// in the background, and lists suggestions, conflicts, and missing ontology
+// links that can be applied to the page (as a new version) or dismissed.
 
 const POLL_MS = 2000;
 const money = (n: number) => (n < 0.01 ? '<$0.01' : `$${n.toFixed(2)}`);
@@ -146,6 +153,50 @@ function ConflictCard({ c, ...actions }: { c: ReviewConflict } & ItemActions) {
   );
 }
 
+// Shows the mention in its sentence, with the term emphasised.
+function InContext({ context, term }: { context: string; term: string }) {
+  const at = context.toLowerCase().indexOf(term.toLowerCase());
+  if (at < 0) return <q>{context}</q>;
+  return (
+    <q>
+      {context.slice(0, at)}
+      <mark>{context.slice(at, at + term.length)}</mark>
+      {context.slice(at + term.length)}
+    </q>
+  );
+}
+
+function LinkCard({ l, ...actions }: { l: ReviewLink } & ItemActions) {
+  return (
+    <li className="review-item link">
+      <div className="review-item-head">
+        <span className="pill">{l.targetType}</span>
+      </div>
+      <p>
+        Link “{l.term}” to{' '}
+        <a href={href({ view: l.kind, id: l.targetId })} target="_blank" rel="noreferrer">
+          {l.targetName}
+        </a>
+      </p>
+      <p className="review-context">
+        <InContext context={l.context} term={l.term} />
+      </p>
+      {l.reason && <p className="muted hint">{l.reason}</p>}
+      <div className="review-item-actions">
+        <button className="primary" disabled={actions.busy} onClick={actions.onApply}>
+          Add link
+        </button>
+        <button disabled={actions.busy} onClick={() => showInEditor(l.context.replace(/^…|…$/g, ''))}>
+          Show
+        </button>
+        <button disabled={actions.busy} onClick={actions.onDismiss}>
+          Dismiss
+        </button>
+      </div>
+    </li>
+  );
+}
+
 interface Props {
   path: string;
   // The page version shown in the editor, to tell whether the review is stale.
@@ -236,7 +287,14 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
   const result = review?.status === 'succeeded' ? review.result : null;
   const openSuggestions = result?.suggestions.filter((s) => s.state === 'open') ?? [];
   const openConflicts = result?.conflicts.filter((c) => c.state === 'open') ?? [];
-  const handled = result ? [...result.suggestions, ...result.conflicts].filter((x) => x.state !== 'open') : [];
+  const links = result?.links ?? [];
+  const openLinks = links.filter((l) => l.state === 'open');
+  const handled = result
+    ? [
+        ...[...result.suggestions, ...result.conflicts].map((x) => ({ id: x.id, state: x.state, label: x.quote })),
+        ...links.map((l) => ({ id: l.id, state: l.state, label: `Link “${l.term}” to ${l.targetName}` })),
+      ].filter((x) => x.state !== 'open')
+    : [];
   const stale = Boolean(review && currentVersionId && review.versionId && review.versionId !== currentVersionId);
   const actions = (id: string) => ({
     busy: busyItem !== null,
@@ -276,6 +334,12 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
                 to <strong>{estimate.provider === 'anthropic' ? 'Anthropic' : 'your OpenAI-compatible provider'}</strong>{' '}
                 ({estimate.model}). <strong>It will incur LLM costs.</strong>
               </p>
+              {estimate.linkCandidates > 0 && (
+                <p className="muted">
+                  It also checks {estimate.linkCandidates} ontology{' '}
+                  {estimate.linkCandidates === 1 ? 'term that appears' : 'terms that appear'} on the page without a link.
+                </p>
+              )}
               <p className="muted">
                 ~{tokens(estimate.inputTokens)} input + ~{tokens(estimate.outputTokens)} output tokens
                 {estimate.costUsd && <> · {money(estimate.costUsd.low)} – {money(estimate.costUsd.high)}</>}
@@ -322,7 +386,8 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
         <>
           {!review && (
             <p className="muted">
-              Get suggestions that make this page clearer, and find places where it contradicts other pages.
+              Get suggestions that make this page clearer, find places where it contradicts other pages, and
+              link terms that are in the ontology.
             </p>
           )}
           <button className={review ? undefined : 'primary'} onClick={ask}>
@@ -358,6 +423,23 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
             </ul>
           )}
 
+          {result.links && (
+            <>
+              <h3>Missing links ({openLinks.length})</h3>
+              {openLinks.length === 0 ? (
+                <p className="muted">
+                  {links.length ? 'All handled.' : 'Every ontology term on this page is linked, or none appear.'}
+                </p>
+              ) : (
+                <ul>
+                  {openLinks.map((l) => (
+                    <LinkCard key={l.id} l={l} {...actions(l.id)} />
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
           <h3>Suggestions ({openSuggestions.length})</h3>
           {openSuggestions.length === 0 ? (
             <p className="muted">{result.suggestions.length ? 'All handled.' : 'Nothing to suggest; the page reads clearly.'}</p>
@@ -379,7 +461,7 @@ export function ReviewPanel({ path, currentVersionId, beforeApply, onApplied, on
                   {handled.map((x) => (
                     <li key={x.id} className="muted">
                       <span className={x.state === 'applied' ? 'up' : undefined}>{x.state === 'applied' ? 'Applied' : 'Dismissed'}</span>
-                      : {x.quote.length > 80 ? `${x.quote.slice(0, 80)}…` : x.quote}
+                      : {x.label.length > 80 ? `${x.label.slice(0, 80)}…` : x.label}
                     </li>
                   ))}
                 </ul>

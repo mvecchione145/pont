@@ -272,6 +272,19 @@ export interface ReviewConflict {
   state: ReviewItemState;
 }
 
+export interface ReviewLink {
+  id: string;
+  kind: 'concept' | 'relation';
+  targetId: string;
+  targetName: string;
+  targetType: string;
+  term: string;
+  context: string;
+  reason: string;
+  applicable: boolean;
+  state: ReviewItemState;
+}
+
 export interface PageReview {
   id: string;
   path: string;
@@ -281,7 +294,13 @@ export interface PageReview {
   provider: string;
   model: string;
   compared: string[];
-  result: { summary: string; suggestions: ReviewSuggestion[]; conflicts: ReviewConflict[] } | null;
+  result: {
+    summary: string;
+    suggestions: ReviewSuggestion[];
+    conflicts: ReviewConflict[];
+    // Absent on reviews made before link suggestions existed.
+    links?: ReviewLink[];
+  } | null;
   usage: { inputTokens?: number; outputTokens?: number; costUsd?: number | null };
   error: string | null;
   startedAt: string;
@@ -293,6 +312,7 @@ export interface ReviewEstimate {
   model: string;
   compared: string[];
   passages: number;
+  linkCandidates: number;
   inputTokens: number;
   outputTokens: number;
   costUsd: { low: number; high: number } | null;

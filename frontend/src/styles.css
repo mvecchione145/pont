@@ -2181,3 +2181,19 @@ select {
   cursor: pointer;
   text-decoration: underline;
 }
+
+.review-item.link {
+  border-left: 3px solid var(--accent);
+}
+
+.review-context {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.review-context mark {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}

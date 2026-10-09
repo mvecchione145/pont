@@ -271,7 +271,7 @@ Turns free-text documentation into explicit concepts and relationships that peop
 
 ## Epic 9 — Page review *(post-MVP)*
 
-Helps people keep each page clear and consistent with the rest of the documentation, without the LLM ever changing a page on its own.
+Helps people keep each page clear, consistent with the rest of the documentation, and linked to the ontology, without the LLM ever changing a page on its own.
 
 **9.1** As a **Domain Expert**, I want an LLM to review the page I'm on and suggest clearer wording, so that readers (and agents) understand it the way it was meant.
 - [x] A **Review** button on every page opens a side panel; a confirmation shows which related pages will be compared, the estimated tokens, and the cost before anything is sent
@@ -283,7 +283,12 @@ Helps people keep each page clear and consistent with the rest of the documentat
 - [x] Each conflict quotes both sides, links to the other page, says which side looks right, and offers a fix when this page is likely the wrong one
 - [x] Quotes are checked against the real text: invented quotes are dropped, and one-click Apply is only offered when the quote appears exactly once on the page
 
-**9.3** As a **Domain Expert**, I want the latest review of a page kept, so that I or a colleague can work through it later.
+**9.3** As a **Domain Expert**, I want the review to find terms the page mentions that are in the ontology but not linked, so that readers and agents can jump to the exact definition.
+- [x] The server finds concepts (by name or alias) and named relationships that appear on the page in plain text without a link, skipping code, existing links, URLs, and anything the page already links to; acronyms match case-sensitively
+- [x] The model keeps only mentions that really mean the concept (a generic "map" is not the *Map* concept)
+- [x] **Add link** wraps the first plain mention in a normal ontology link (`[term](#/concept/<id>)`), saved as a new page version
+
+**9.4** As a **Domain Expert**, I want the latest review of a page kept, so that I or a colleague can work through it later.
 - [x] Reviews run in the background and are stored; the panel warns when the page has changed since the review
 
 ---
