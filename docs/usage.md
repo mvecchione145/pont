@@ -54,8 +54,8 @@ Everyone who can sign in can read and edit everything.
 Click **＋ New page** (or the **＋** next to *Pages*) and type. Changes save automatically.
 
 - **Name the page** in the title at the top. Use `/` in the folder field (⋯ → **Move to folder…**) to organize pages, for example `metrics/weekly-active-screens`.
-- Type **`/`** for the block menu: headings, lists, to-dos, quotes, code, tables, and **Advanced → Ontology link**.
-- **Select text** for the formatting toolbar: bold, italic, strikethrough, code, link, and **Ontology link**.
+- Type **`/`** for the block menu: headings, lists, to-dos, quotes, code, tables, and **Advanced → Link to page or concept**.
+- **Select text** for the formatting toolbar: bold, italic, strikethrough, code, link, and **Link to page, heading, or concept**.
 - If someone else saves the same page while you're editing, pont won't overwrite their version. It offers to copy your text or load theirs.
 
 An example page, `metrics/weekly-active-screens`:
@@ -76,6 +76,18 @@ The Data team owns this metric. Questions go to #data-help.
   because heartbeats kept arriving from screens that were powered on but blank.
   Decided by the Data team with Sales.
 ```
+
+### Linking pages and headings
+
+Type `[[` and a few letters to link to another page, a heading, or an ontology concept. Add `#` to link to a heading:
+
+| You type | Links to | Saved as |
+|---|---|---|
+| `[[onboarding` | The page `processes/onboarding` | `[onboarding](#/p/processes/onboarding)` |
+| `[[#escal` | The *Escalation* heading on this page | `[Escalation](#/p/<this page>?section=Escalation)` |
+| `[[onboarding#escal` | The *Escalation* heading on the onboarding page | `[Escalation](#/p/processes/onboarding?section=Escalation)` |
+
+You can also select text and press **⌘⇧K** or use the toolbar button to turn it into a link. **⌘-click** (Ctrl-click) a link to follow it: a heading link opens the page scrolled to that heading and highlights it. Agents see the same links when they read a page and can follow them with `read_entry`.
 
 Plain Markdown is all there is: no templates or required fields. A decision is captured by writing down what was decided, why, and by whom.
 
@@ -223,7 +235,7 @@ The ontology is the shared vocabulary of your documentation: concepts (metrics, 
 
 Every concept and relationship has its own page where you can edit it, delete it, add relationships, and see which pages link to it.
 
-**Linking text to a concept** works four ways in the editor: type `[[` and a few letters; select text and press **⌘⇧K**; select text and click **Ontology link** in the toolbar; or type `/` and choose **Advanced → Ontology link**. A picker shows matching concepts and relationships, and can create a new concept on the spot.
+**Linking text to a concept** works four ways in the editor: type `[[` and a few letters; select text and press **⌘⇧K**; select text and click the link button at the end of the toolbar; or type `/` and choose **Advanced → Link to page or concept**. The same picker lists pages and headings too, and can create a new concept on the spot.
 
 ## 9. Play trivia
 

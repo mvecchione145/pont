@@ -42,8 +42,11 @@ function validName(name: string): string | null {
 
 interface Props {
   path: string;
-  // Set when arriving from trivia's "Fact check": the heading to scroll to.
+  // The heading to scroll to (from a link to a section, or trivia's "Fact check").
   section?: string;
+  // Arriving from trivia's "Fact check" (or a review conflict): ask the reader
+  // to fix what's wrong.
+  factCheck: boolean;
   isNew: boolean;
   onChanged: () => void;
   // Called after a rename or move. The parent keeps this same Page mounted
@@ -53,7 +56,7 @@ interface Props {
   pendingProposals: number;
 }
 
-export function Page({ path, section, isNew, onChanged, onRenamed, pendingProposals }: Props) {
+export function Page({ path, section, factCheck: arrivedToCheck, isNew, onChanged, onRenamed, pendingProposals }: Props) {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
@@ -64,7 +67,7 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
   const [menuOpen, setMenuOpen] = useState(false);
   const [moving, setMoving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [factCheck, setFactCheck] = useState(Boolean(section));
+  const [factCheck, setFactCheck] = useState(arrivedToCheck);
   const [reviewing, setReviewing] = useState(false);
 
   // Autosave bookkeeping lives in refs so the editor's change handler never
@@ -165,13 +168,19 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
     };
   }, [flush]);
 
-  // Fact check: once the editor has rendered, scroll to the section the
-  // trivia question came from and highlight it briefly. The highlight is a
+  useEffect(() => {
+    if (arrivedToCheck) setFactCheck(true);
+  }, [arrivedToCheck, section]);
+
+  // Once the editor has rendered, scroll to the linked section (or the one a
+  // trivia question came from) and highlight it briefly. The highlight is a
   // separate overlay: ProseMirror owns the editor's DOM and redraws any node
   // changed from outside, so a class added to the heading wouldn't survive.
+  // Once per section: autosaves update "entry" and must not scroll back.
+  const scrolledTo = useRef<string | null>(null);
   useEffect(() => {
-    if (!section || !entry) return;
-    setFactCheck(true);
+    if (!section || !entry || scrolledTo.current === section) return;
+    scrolledTo.current = section;
     // Up to 10s: on a cold load the editor bundle may still be downloading.
     let tries = 0;
     const timer = window.setInterval(() => {
@@ -457,7 +466,10 @@ export function Page({ path, section, isNew, onChanged, onRenamed, pendingPropos
             <Editor
               ref={editorRef}
               key={reloadCount}
-              initialMarkdown={entry.content} onChange={onEdit} />
+              path={path}
+              initialMarkdown={entry.content}
+              onChange={onEdit}
+            />
           </Suspense>
         ) : (
           <p className="muted">Loading…</p>

@@ -131,7 +131,12 @@ export function Trivia({ user }: Props) {
   const section = (path: string, headings: string) => (headings ? `${nameOf(path)} › ${headings}` : nameOf(path));
   const factCheck = () =>
     result &&
-    navigate({ view: 'page', path: result.path, section: result.headings.split(' > ').pop() || nameOf(result.path) });
+    navigate({
+      view: 'page',
+      path: result.path,
+      section: result.headings.split(' > ').pop() || nameOf(result.path),
+      check: true,
+    });
 
   return (
     <div className="trivia-layout">

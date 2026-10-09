@@ -167,6 +167,11 @@ pont reuses design ideas from [Onyx](https://github.com/onyx-dot-app/onyx) (MIT-
 - [x] Folder uploads keep their structure as pont folders
 - [x] A preview shows each file's destination page before anything is written; existing pages are only replaced when ticked, and keep their history
 
+**3.5** As a **Domain Expert**, I want to link to other pages and to specific headings, so that readers (and agents) can jump straight to the related detail.
+- [x] `[[` finds pages and headings as well as ontology concepts; `#` targets a heading (`[[#escal` on this page, `[[onboarding#escal` on another)
+- [x] Links are plain Markdown (`#/p/<path>` and `#/p/<path>?section=<heading>`); following a heading link scrolls to the heading and highlights it
+- [ ] Links are updated when the target page is renamed or moved, or flagged when they break
+
 ## Epic 4 — Agents use context through MCP
 
 **4.1** As an **Agent**, I want to retrieve relevant organizational context through MCP tools, so that my output follows how this organization actually works.
@@ -266,7 +271,7 @@ Turns free-text documentation into explicit concepts and relationships that peop
 - [x] Each page lists the documentation that links to it
 
 **8.6** As a **Domain Expert**, I want to link words in the documentation to ontology concepts, so that readers and agents know exactly what a term means.
-- [x] Typing `[[`, pressing ⌘⇧K, the **Ontology link** button in the selection toolbar, or `/` → Advanced → **Ontology link** opens a picker of matching concepts and relationships (name, type, description), with "create concept" when nothing fits
+- [x] Typing `[[`, pressing ⌘⇧K, the link button in the selection toolbar, or `/` → Advanced → **Link to page or concept** opens a picker of matching concepts and relationships (name, type, description), with "create concept" when nothing fits
 - [x] Links are plain Markdown (`#/concept/<id>`), and agents can resolve them with the `get_concept` MCP tool
 
 ## Epic 9 — Page review *(post-MVP)*

@@ -21,6 +21,8 @@ interface Props {
   // Read once when the editor mounts. Remount (change the React key) to load
   // different content.
   initialMarkdown: string;
+  // The page's path, so links can point to its own headings.
+  path: string;
   onChange: (markdown: string) => void;
 }
 
@@ -40,11 +42,13 @@ const TRIGGER = /\[\[([^[\]\n￼]{0,60})$/;
 
 // Notion-style block editor (Milkdown Crepe) that reads and writes Markdown
 // directly: "/" opens the block menu, blocks have drag handles, and selecting
-// text shows a formatting toolbar. Text links to the ontology, as a plain
-// Markdown link to #/concept/<id> or #/relation/<id>, from "[[", from
-// Cmd/Ctrl+Shift+K, from the toolbar's "Ontology link" button (selected text),
-// or from "/" > Advanced > "Ontology link" (inserted at the cursor).
-export function Editor({ ref, initialMarkdown, onChange }: Props) {
+// text shows a formatting toolbar. Text links to another page, a heading
+// (on this page or another), or the ontology, as a plain Markdown link to
+// #/p/<path>[?section=<heading>], #/concept/<id>, or #/relation/<id>: from
+// "[[" (with "#" for headings), from Cmd/Ctrl+Shift+K, from the toolbar's
+// "Link" button (selected text), or from "/" > Advanced > "Link to page or
+// concept" (inserted at the cursor).
+export function Editor({ ref, initialMarkdown, path, onChange }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const crepeRef = useRef<Crepe | null>(null);
   const readyRef = useRef(false);
@@ -119,12 +123,12 @@ export function Editor({ ref, initialMarkdown, onChange }: Props) {
         [CrepeFeature.TopBar]: false,
       },
       featureConfigs: {
-        [CrepeFeature.Placeholder]: { text: "Type '/' for commands, or [[ to link a concept", mode: 'block' },
+        [CrepeFeature.Placeholder]: { text: "Type '/' for commands, or [[ to link a page or concept", mode: 'block' },
         [CrepeFeature.BlockEdit]: {
           advancedGroup: { image: null, math: null },
           buildMenu: (builder) => {
             builder.getGroup('advanced').addItem('ontology-link', {
-              label: 'Ontology link',
+              label: 'Link to page or concept',
               icon: ONTOLOGY_LINK_ICON,
               onRun: (ctx) => {
                 // Remove the typed "/query", then link at the cursor.
@@ -142,7 +146,7 @@ export function Editor({ ref, initialMarkdown, onChange }: Props) {
         [CrepeFeature.Toolbar]: {
           buildToolbar: (builder) => {
             builder.getGroup('function').addItem('ontology-link', {
-              label: 'Ontology link (⌘⇧K)',
+              label: 'Link to page, heading, or concept (⌘⇧K)',
               icon: ONTOLOGY_LINK_ICON,
               active: () => false,
               onRun: () => openFromSelectionRef.current(),
@@ -237,7 +241,7 @@ export function Editor({ ref, initialMarkdown, onChange }: Props) {
     if (!p) return;
     withView((view) => {
       const linkType = view.state.schema.marks.link;
-      const mark = linkType.create({ href: `#/${picked.kind}/${picked.id}` });
+      const mark = linkType.create({ href: picked.href });
       let tr = view.state.tr;
       let end: number;
       if (p.mode === 'wrap') {
@@ -262,6 +266,7 @@ export function Editor({ ref, initialMarkdown, onChange }: Props) {
           ref={pickerKeys}
           mode={picker.mode === 'trigger' ? 'trigger' : 'search'}
           query={picker.query}
+          fromPath={path}
           x={picker.x}
           y={picker.y}
           onPick={link}

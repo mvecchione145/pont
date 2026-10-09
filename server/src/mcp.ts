@@ -118,7 +118,9 @@ function buildServer(user: User): McpServer {
       title: 'Read a knowledge entry',
       description:
         'Returns the full Markdown of one knowledge entry, plus who last edited it and when. ' +
-        'Use a path from list_entries, for example "processes/onboarding".',
+        'Use a path from list_entries, for example "processes/onboarding". Links in entries point to ' +
+        'other entries as (#/p/<path>) or (#/p/<path>?section=<heading>), which read_entry can open, ' +
+        'and to ontology concepts as (#/concept/<id>), which get_concept can look up.',
       inputSchema: {
         path: z.string().describe('Entry path without the .md extension, for example "processes/onboarding"'),
       },

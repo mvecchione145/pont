@@ -133,7 +133,7 @@ function ConflictCard({ c, ...actions }: { c: ReviewConflict } & ItemActions) {
         </div>
         <div>
           <span className="muted">
-            <a href={href({ view: 'page', path: c.otherPath, section: c.otherSection.split(' > ').pop() || undefined })}>
+            <a href={href({ view: 'page', path: c.otherPath, section: c.otherSection.split(' > ').pop() || undefined, check: true })}>
               {c.otherPath}
             </a>
             {c.otherSection && <> · {c.otherSection}</>}

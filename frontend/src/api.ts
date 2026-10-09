@@ -149,6 +149,15 @@ export interface RelationDetail extends Relation {
   linkedFrom: string[];
 }
 
+// A page or a heading to link to (see server/src/pagelinks.ts).
+export interface LinkTarget {
+  kind: 'page' | 'section';
+  path: string;
+  name: string;
+  trail?: string;
+  level?: number;
+}
+
 export interface OntologyHit {
   kind: 'concept' | 'relation';
   id: string;
@@ -455,6 +464,8 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ restore: versionId }),
     }),
+  searchLinkTargets: (q: string, from: string) =>
+    request<LinkTarget[]>(`/api/links/search?${new URLSearchParams({ q, from })}`),
   searchOntology: (q: string) => request<OntologyHit[]>(`/api/ontology/search?${new URLSearchParams({ q })}`),
   concept: (id: string) => request<ConceptDetail>(`/api/ontology/concepts/${encodeURIComponent(id)}`),
   createConcept: (body: { name: string; type: string; definition?: string; aliases?: string[] }) =>

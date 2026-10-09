@@ -166,6 +166,7 @@ export default function App() {
             key={pageKey(route.path)}
             path={route.path}
             section={route.section}
+            factCheck={route.check ?? false}
             isNew={justCreated === route.path}
             onChanged={refreshEntries}
             onRenamed={renamed}

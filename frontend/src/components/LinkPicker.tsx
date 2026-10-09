@@ -1,9 +1,12 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
-import { api, CONCEPT_TYPES, type OntologyHit } from '../api';
+import { api, CONCEPT_TYPES, type LinkTarget, type OntologyHit } from '../api';
+import { href, nameOf } from '../route';
 
-// The ontology autocomplete used when linking text: a floating table of
-// matching concepts and relationships (Ontology | Type | Description), plus
-// "Create concept" when nothing matches exactly.
+// The autocomplete used when linking text: a floating table (Link to | Type |
+// Description) of matching ontology concepts and relationships, pages, and
+// headings, plus "Create concept" when nothing matches exactly. A query with
+// "#" links to a heading: "#escal" on this page, "onboarding#escal" on
+// another page.
 
 export interface PickerKeys {
   // Returns true when the picker handled the key.
@@ -11,8 +14,9 @@ export interface PickerKeys {
 }
 
 export interface Picked {
-  kind: 'concept' | 'relation';
-  id: string;
+  // The link target, e.g. "#/concept/appy" or "#/p/processes/onboarding?section=Escalation".
+  href: string;
+  // Text for a new link.
   name: string;
 }
 
@@ -22,17 +26,27 @@ interface Props {
   // here). "search": the picker has its own search box.
   mode: 'trigger' | 'search';
   query: string;
+  // The page being edited, for links to its own headings.
+  fromPath: string;
   x: number;
   y: number;
   onPick: (picked: Picked) => void;
   onClose: () => void;
 }
 
-type Row = { hit: OntologyHit } | { create: string };
+type Row = { hit: OntologyHit } | { target: LinkTarget } | { create: string };
 
-export function LinkPicker({ ref, mode, query, x, y, onPick, onClose }: Props) {
+const ONTOLOGY_ROWS = 6;
+const PAGE_ROWS = 8;
+
+const rowKey = (row: Row) =>
+  'hit' in row ? `${row.hit.kind}:${row.hit.id}` : 'target' in row ? `${row.target.kind}:${row.target.path}#${row.target.name}` : 'create';
+const rowName = (row: Row) => ('hit' in row ? row.hit.name : 'target' in row ? row.target.name : row.create);
+
+export function LinkPicker({ ref, mode, query, fromPath, x, y, onPick, onClose }: Props) {
   const [search, setSearch] = useState(query);
   const [hits, setHits] = useState<OntologyHit[]>([]);
+  const [targets, setTargets] = useState<LinkTarget[]>([]);
   const [active, setActive] = useState(0);
   const [creating, setCreating] = useState<string | null>(null);
   const [type, setType] = useState<string>('Term');
@@ -45,28 +59,40 @@ export function LinkPicker({ ref, mode, query, x, y, onPick, onClose }: Props) {
   useEffect(() => {
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      api.searchOntology(q).then(
-        (h) => {
-          if (cancelled) return;
-          setHits(h);
-          setActive(0);
-        },
-        () => !cancelled && setHits([]),
-      );
+      // "#" means a heading, so the ontology isn't searched.
+      const ontology = q.includes('#') ? Promise.resolve([]) : api.searchOntology(q).catch(() => []);
+      const pages = api.searchLinkTargets(q, fromPath).catch(() => []);
+      void Promise.all([ontology, pages]).then(([h, t]) => {
+        if (cancelled) return;
+        setHits(h.slice(0, ONTOLOGY_ROWS));
+        setTargets(t.slice(0, PAGE_ROWS));
+        setActive(0);
+      });
     }, 120);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [q]);
+  }, [q, fromPath]);
 
-  const exact = hits.some((h) => h.name.toLowerCase() === q.trim().toLowerCase());
-  const rows: Row[] = [...hits.map((hit) => ({ hit })), ...(q.trim() && !exact ? [{ create: q.trim() }] : [])];
+  const wanted = q.trim().toLowerCase();
+  const found: Row[] = [...hits.map((hit) => ({ hit })), ...targets.map((target) => ({ target }))];
+  // Exact name matches first, whatever kind they are.
+  const isExact = (row: Row) => rowName(row).toLowerCase() === wanted;
+  const exact = found.some(isExact);
+  const rows: Row[] = [
+    ...found.filter(isExact),
+    ...found.filter((row) => !isExact(row)),
+    ...(wanted && !exact && !wanted.includes('#') ? [{ create: q.trim() }] : []),
+  ];
 
   function choose(row: Row | undefined) {
     if (!row) return;
-    if ('hit' in row) onPick({ kind: row.hit.kind, id: row.hit.id, name: row.hit.name });
-    else {
+    if ('hit' in row) onPick({ href: href({ view: row.hit.kind, id: row.hit.id }), name: row.hit.name });
+    else if ('target' in row) {
+      const t = row.target;
+      onPick({ href: href({ view: 'page', path: t.path, section: t.kind === 'section' ? t.name : undefined }), name: t.name });
+    } else {
       setCreating(row.create);
       setError(null);
     }
@@ -104,21 +130,21 @@ export function LinkPicker({ ref, mode, query, x, y, onPick, onClose }: Props) {
     if (!creating) return;
     try {
       const c = await api.createConcept({ name: creating, type, definition });
-      onPick({ kind: 'concept', id: c.id, name: c.name });
+      onPick({ href: href({ view: 'concept', id: c.id }), name: c.name });
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
   return (
-    <div className="link-picker" ref={boxRef} style={style} role="dialog" aria-label="Link to the ontology">
+    <div className="link-picker" ref={boxRef} style={style} role="dialog" aria-label="Link to a page, heading, or concept">
       {mode === 'search' && !creating && (
         <input
           className="link-picker-search"
           autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search concepts and relationships…"
+          placeholder="Search pages, headings (#), and concepts…"
           onKeyDown={(e) => {
             const handled =
               e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Escape' || e.key === 'Tab';
@@ -164,7 +190,7 @@ export function LinkPicker({ ref, mode, query, x, y, onPick, onClose }: Props) {
           <table>
             <thead>
               <tr>
-                <th>Ontology</th>
+                <th>Link to</th>
                 <th>Type</th>
                 <th>Description</th>
               </tr>
@@ -172,7 +198,7 @@ export function LinkPicker({ ref, mode, query, x, y, onPick, onClose }: Props) {
             <tbody>
               {rows.map((row, i) => (
                 <tr
-                  key={'hit' in row ? `${row.hit.kind}:${row.hit.id}` : 'create'}
+                  key={rowKey(row)}
                   className={i === active ? 'active' : undefined}
                   onMouseEnter={() => setActive(i)}
                   onMouseDown={(e) => {
@@ -188,6 +214,25 @@ export function LinkPicker({ ref, mode, query, x, y, onPick, onClose }: Props) {
                       </td>
                       <td className="muted desc">{row.hit.description}</td>
                     </>
+                  ) : 'target' in row ? (
+                    <>
+                      <td className="name">
+                        {row.target.kind === 'section' && <span className="muted"># </span>}
+                        {row.target.name}
+                      </td>
+                      <td>
+                        <span className={`pill ${row.target.kind}`}>{row.target.kind === 'page' ? 'Page' : 'Heading'}</span>
+                      </td>
+                      <td className="muted desc">
+                        {row.target.kind === 'page'
+                          ? row.target.path.includes('/')
+                            ? `in ${row.target.path.slice(0, row.target.path.lastIndexOf('/'))}`
+                            : 'top level'
+                          : [row.target.path === fromPath ? 'this page' : nameOf(row.target.path), row.target.trail]
+                              .filter(Boolean)
+                              .join(' › ')}
+                      </td>
+                    </>
                   ) : (
                     <td colSpan={3} className="create">
                       ＋ Create concept “{row.create}”
@@ -197,8 +242,10 @@ export function LinkPicker({ ref, mode, query, x, y, onPick, onClose }: Props) {
               ))}
             </tbody>
           </table>
-          {rows.length === 0 && <p className="muted empty">Type to search the ontology.</p>}
-          <p className="muted foot">↑↓ choose · ↵ link · esc close · ⌘-click a link to open it</p>
+          {rows.length === 0 && (
+            <p className="muted empty">{q.includes('#') ? 'No matching headings.' : 'Type to search pages, headings, and concepts.'}</p>
+          )}
+          <p className="muted foot">↑↓ choose · ↵ link · # for headings · esc close · ⌘-click a link to open it</p>
         </>
       )}
     </div>

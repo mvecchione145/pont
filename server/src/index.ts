@@ -18,6 +18,8 @@ import { reviewsRouter, reviewErrors } from './routes/reviews.js';
 import { failInterruptedReviews } from './review.js';
 import { failInterruptedRuns } from './ontology/runs.js';
 import { startLinkIndex } from './ontology/links.js';
+import { startPageLinkIndex } from './pagelinks.js';
+import { linksRouter } from './routes/links.js';
 import { startIndexer } from './search/index.js';
 
 const app = express();
@@ -55,6 +57,7 @@ app.use('/api/ontology', ontologyRouter, ontologyErrors);
 app.use('/api/proposals', proposalsRouter, proposalErrors);
 app.use('/api/history', historyRouter, historyErrors);
 app.use('/api/reviews', reviewsRouter, reviewErrors);
+app.use('/api/links', linksRouter);
 
 await redis.connect();
 await migrate();
@@ -69,6 +72,7 @@ const server = app.listen(config.port, () => {
 // background; search answers 503 until it is ready.
 void startIndexer();
 void startLinkIndex();
+void startPageLinkIndex();
 
 async function shutdown() {
   server.close();

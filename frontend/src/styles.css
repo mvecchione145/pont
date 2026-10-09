@@ -2274,3 +2274,9 @@ select {
     color: var(--accent);
   }
 }
+
+.link-picker .pill.page,
+.link-picker .pill.section {
+  background: color-mix(in srgb, var(--up) 14%, transparent);
+  color: var(--fg);
+}
