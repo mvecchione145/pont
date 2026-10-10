@@ -50,6 +50,13 @@ The user can now sign in at <http://localhost:3000>.
      --header "Authorization: Bearer pont_..."
    ```
 
+Or, when working in this repository, use the included [`.mcp.json`](.mcp.json): it connects Claude Code to your local pont at `http://localhost:3000/mcp` and reads the token from the `PONT_API_TOKEN` environment variable, so no token is stored in the file:
+
+```sh
+export PONT_API_TOKEN=pont_...   # the token from API tokens
+claude                          # approve the "pont" server when asked
+```
+
 Claude Code can then call pont's MCP tools as you:
 
 * **Read:** `search`, `read_entry`, `list_entries`, `get_concept`, `list_concepts`

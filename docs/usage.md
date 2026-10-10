@@ -128,6 +128,8 @@ Results show the page and section; click one to open it. Unrelated questions ret
      --header "Authorization: Bearer pont_..."
    ```
 
+   Working in the pont repository itself? Its `.mcp.json` already points at `http://localhost:3000/mcp`; just `export PONT_API_TOKEN=pont_...` and start `claude` (approve the `pont` server the first time).
+
 3. Ask Claude Code something your docs answer:
 
    > How do we define a weekly active screen? Check pont.
