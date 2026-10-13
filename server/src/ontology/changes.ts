@@ -147,18 +147,18 @@ export const changeCount = (c: Changes) => c.added.length + c.modified.length + 
 export async function saveSnapshots(client: PoolClient, zone: string, changes: Changes, runId: string): Promise<void> {
   const upsert = `INSERT INTO ontology_snapshots (path, version_id, content_hash, run_id, zone)
                   VALUES ($1, $2, $3, $4, $5)
-                  ON CONFLICT (path) DO UPDATE
+                  ON CONFLICT (zone, path) DO UPDATE
                   SET version_id = $2, content_hash = $3, run_id = $4, zone = $5, calculated_at = now()`;
   for (const p of [...changes.added, ...changes.modified]) {
     await client.query(upsert, [p.path, p.versionId, p.hash, runId, zone]);
   }
   for (const p of changes.unchanged) {
     await client.query(
-      'UPDATE ontology_snapshots SET version_id = $2, run_id = $3, calculated_at = now() WHERE path = $1',
-      [p.path, p.versionId, runId],
+      'UPDATE ontology_snapshots SET version_id = $2, run_id = $3, calculated_at = now() WHERE path = $1 AND zone = $4',
+      [p.path, p.versionId, runId, zone],
     );
   }
   for (const p of changes.deleted) {
-    await client.query('DELETE FROM ontology_snapshots WHERE path = $1', [p.path]);
+    await client.query('DELETE FROM ontology_snapshots WHERE path = $1 AND zone = $2', [p.path, zone]);
   }
 }

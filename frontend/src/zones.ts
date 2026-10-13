@@ -1,5 +1,6 @@
 // Zones (see server/src/ontology/zones.ts): every top-level folder is a zone
-// with its own ontology, and pages at the root are in the default zone ("").
+// with its own ontology, and the default zone ("", General) is the
+// organization-wide ontology, drawn from every page.
 // A concept or relationship is referred to by its "ref": "<zone>/<id>", or
 // just "<id>" in the default zone, as in #/concept/<ref> links.
 

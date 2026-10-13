@@ -1,11 +1,12 @@
 import { getEntry } from '../entries.js';
 import type { Source } from './store.js';
-import { zoneName, zoneOf } from './zones.js';
+import { covers, zoneName } from './zones.js';
 
 // Checks that each evidence quote really appears on its page, ignoring case
 // and whitespace differences. "previous" holds earlier content that also
 // counts (for example, a deleted or changed page's last analysed text).
-// When a zone is given, every quote must come from a page in that zone.
+// When a zone is given, every quote must come from a page that zone covers
+// (any page, for General).
 // Returns a message for the agent, or null when all quotes check out.
 
 const normalize = (text: string) => text.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -18,7 +19,7 @@ export async function verifyEvidence(
 ): Promise<string | null> {
   if (evidence.length === 0) return 'Quote at least one passage as evidence.';
   for (const { path, quote } of evidence) {
-    if (zone !== undefined && zoneOf(path) !== zone) {
+    if (zone !== undefined && !covers(zone, path)) {
       return `Evidence page "${path}" is not in the "${zoneName(zone)}" zone; quote pages from that zone only.`;
     }
     if (quote.trim().length < 5) return `Evidence quote from "${path}" is too short.`;

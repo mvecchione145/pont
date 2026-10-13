@@ -21,7 +21,7 @@ export interface LinkCandidate {
   mentions: string[];
 }
 
-const MAX_CANDIDATES = 40;
+export const MAX_CANDIDATES = 40;
 
 // Spans of the page that must never get a link added.
 function protectedRanges(markdown: string): [number, number][] {

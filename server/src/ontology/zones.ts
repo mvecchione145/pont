@@ -2,10 +2,11 @@ import { listEntries } from '../entries.js';
 import { zonesWithConcepts } from './store.js';
 
 // Zones: a logical separation of the documentation. Every top-level folder is
-// a zone, and pages at the root belong to the default zone (""). Each zone
-// has its own ontology, calculated only from its own pages, with its own runs,
-// snapshots, and review queue. Moving a page to another top-level folder
-// moves it to that zone.
+// a zone with its own ontology, calculated only from that folder's pages,
+// with its own runs, snapshots, and review queue. The default zone ("",
+// shown as General) is the organization-wide ontology: it is calculated from
+// every page, at the root and in every folder. A page in a folder therefore
+// feeds two ontologies: its folder's and General's.
 //
 // Concepts are referred to across zones by a "ref": "<zone>/<id>", or just
 // "<id>" in the default zone, so links written before zones existed
@@ -14,8 +15,13 @@ import { zonesWithConcepts } from './store.js';
 export const DEFAULT_ZONE = '';
 export const DEFAULT_ZONE_NAME = 'General';
 
+// The folder zone a page is in ("" at the root). Not the same as which
+// ontologies cover it: see covers.
 export const zoneOf = (path: string) => (path.includes('/') ? path.slice(0, path.indexOf('/')) : DEFAULT_ZONE);
-export const inZone = (zone: string) => (path: string) => zoneOf(path) === zone;
+// Whether a zone's ontology is calculated from (and may cite) this page:
+// General covers every page, a folder zone only its own.
+export const covers = (zone: string, path: string) => zone === DEFAULT_ZONE || zoneOf(path) === zone;
+export const inZone = (zone: string) => (path: string) => covers(zone, path);
 export const zoneName = (zone: string) => zone || DEFAULT_ZONE_NAME;
 
 export const toRef = (zone: string, id: string) => (zone ? `${zone}/${id}` : id);
@@ -45,13 +51,15 @@ export interface ZoneSummary {
   pages: number;
 }
 
-// Zones that exist: the default zone, every top-level folder with pages, and
-// any zone that still has an ontology after its pages were moved away.
+// Zones that exist: General, every top-level folder with pages, and any zone
+// that still has an ontology after its pages were moved away. Page counts are
+// the pages each zone's ontology covers (General: all of them).
 export async function listZones(): Promise<ZoneSummary[]> {
-  const pages = new Map<string, number>([[DEFAULT_ZONE, 0]]);
-  for (const e of await listEntries()) {
+  const entries = await listEntries();
+  const pages = new Map<string, number>([[DEFAULT_ZONE, entries.length]]);
+  for (const e of entries) {
     const z = zoneOf(e.path);
-    pages.set(z, (pages.get(z) ?? 0) + 1);
+    if (z !== DEFAULT_ZONE) pages.set(z, (pages.get(z) ?? 0) + 1);
   }
   for (const z of await zonesWithConcepts()) if (!pages.has(z)) pages.set(z, 0);
   return [...pages.entries()]
