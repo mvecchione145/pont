@@ -187,3 +187,7 @@ docker compose logs -f server  # follow server logs
 docker compose down            # stop (keeps data)
 docker compose down -v         # stop and delete all data
 ```
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).

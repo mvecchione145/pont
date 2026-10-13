@@ -2,6 +2,7 @@
   "name": "@pont/frontend",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "pont web app for browsing and writing knowledge",
   "type": "module",
   "scripts": {
