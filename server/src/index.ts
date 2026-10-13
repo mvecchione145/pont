@@ -1,6 +1,6 @@
 import express from 'express';
 import { config } from './config.js';
-import { redis, db } from './clients.js';
+import { redis, db, graph } from './clients.js';
 import { checkHealth } from './health.js';
 import { requireUser } from './auth.js';
 import { entriesRouter, entryErrors } from './routes/entries.js';
@@ -18,6 +18,8 @@ import { reviewsRouter, reviewErrors } from './routes/reviews.js';
 import { failInterruptedReviews } from './review.js';
 import { failInterruptedRuns } from './ontology/runs.js';
 import { startLinkIndex } from './ontology/links.js';
+import { ensureGraphSchema } from './ontology/store.js';
+import { importLegacyYaml } from './ontology/yaml.js';
 import { startPageLinkIndex } from './pagelinks.js';
 import { linkErrors, linksRouter } from './routes/links.js';
 import { startMoveTracking } from './deadlinks.js';
@@ -69,6 +71,8 @@ app.use('/api/github', githubRouter, githubErrors);
 
 await redis.connect();
 await migrate();
+await ensureGraphSchema();
+await importLegacyYaml();
 await failInterruptedRuns();
 await failInterruptedReviews();
 
@@ -87,7 +91,7 @@ startGithubLinks();
 
 async function shutdown() {
   server.close();
-  await Promise.allSettled([redis.quit(), db.end()]);
+  await Promise.allSettled([redis.quit(), db.end(), graph.close()]);
   process.exit(0);
 }
 process.on('SIGTERM', shutdown);

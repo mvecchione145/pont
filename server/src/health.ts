@@ -1,5 +1,5 @@
 import { GetBucketVersioningCommand } from '@aws-sdk/client-s3';
-import { s3, redis, db } from './clients.js';
+import { s3, redis, db, graph } from './clients.js';
 import { config } from './config.js';
 import { status as searchStatus } from './search/index.js';
 
@@ -30,6 +30,11 @@ const checks: Record<string, () => Promise<string>> = {
     const names = modules.map((m) => String(m.name).toLowerCase());
     if (!names.includes('search')) throw new Error('RediSearch module not loaded');
     return 'search module loaded';
+  },
+
+  async neo4j() {
+    const info = await graph.getServerInfo();
+    return `connected (${info.agent ?? 'neo4j'})`;
   },
 
   async postgres() {

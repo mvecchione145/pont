@@ -13,6 +13,11 @@ export const config = {
     bucket: required('MINIO_BUCKET'),
   },
   redisUrl: required('REDIS_URL'),
+  neo4j: {
+    url: required('NEO4J_URL'),
+    user: required('NEO4J_USER'),
+    password: required('NEO4J_PASSWORD'),
+  },
   databaseUrl: required('DATABASE_URL'),
   // Encrypts secrets stored in Postgres (the LLM API key). Changing it makes
   // stored secrets unreadable; they must then be entered again.

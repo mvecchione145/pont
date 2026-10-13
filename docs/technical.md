@@ -39,7 +39,7 @@
 ```
 
 - **The server is the only service that touches the data stores.** The browser and agents go through nginx to the server; nothing else is exposed except Keycloak (for login) and the MinIO console.
-- **MinIO is the source of truth** for pages and the ontology. Redis holds a search index that can always be rebuilt from MinIO. Postgres holds accounts, tokens, settings, and review queues.
+- **MinIO is the source of truth** for pages, and **Neo4j** for the ontology. Redis holds a search index that can always be rebuilt from MinIO. Postgres holds accounts, tokens, settings, and review queues.
 - Everything runs in one Docker Compose project. The only outside calls are the LLM API (only for trivia, page review, and ontology calculation, and only when a person starts them) and a one-time download of the embedding model.
 
 ## Services and images
@@ -51,6 +51,7 @@
 | `minio` | `cgr.dev/chainguard/minio:latest` | S3-compatible file store with bucket versioning | `9001` console (`MINIO_CONSOLE_PORT`) |
 | `minio-init` | `cgr.dev/chainguard/minio:latest` | One-shot: creates the bucket and turns on versioning | — |
 | `redis` | `redis/redis-stack-server:7.4.0-v6` | Search index: chunks, vectors, BM25 | — |
+| `neo4j` | `neo4j:5.26-community` | The ontology graph: concepts, relationships, and the pages that link to them or are cited as evidence | `7474` Neo4j Browser (`NEO4J_BROWSER_PORT`), `7687` Bolt (`NEO4J_BOLT_PORT`) |
 | `postgres` | `postgres:16-alpine` | Databases for Keycloak and pont | — |
 | `keycloak` | `quay.io/keycloak/keycloak:26.4` | Login, user accounts (`pont` realm imported on first start) | `8080` (`KEYCLOAK_PORT`) |
 
@@ -172,15 +173,16 @@ Give Docker at least **2 GB** of memory, and **4 GB** to be comfortable. Indexin
 | Key | Contents |
 |---|---|
 | `knowledge/<path>.md` | Each page, as plain Markdown. Object metadata records the author, plus where a version came from (proposal, review, restore, move) |
-| `ontology/ontology.yaml` | The default zone's approved ontology (pages at the root): concepts and relationships |
-| `ontology/zones/<zone>.yaml` | Each other zone's approved ontology; a zone is a top-level folder |
+| `ontology/ontology.yaml`, `ontology/zones/<zone>.yaml` | The ontology as it was before it moved to Neo4j. Imported once on the first start with Neo4j and then left alone; no longer updated |
 | `proposals/<id>.patch` | Agent page proposals, as unified diffs |
 
-**Postgres** (`pont` database): API tokens (hashes only), settings (with the encrypted LLM key), trivia questions and scores, ontology runs, page snapshots and recommendations, page proposals, page reviews, page moves (so dead links can point to where a page went), and an index of which pages link to which ontology items (rebuilt on every start).
+**Postgres** (`pont` database): API tokens (hashes only), settings (with the encrypted LLM key), trivia questions and scores, ontology runs, page snapshots and recommendations, page proposals, page reviews, and page moves (so dead links can point to where a page went).
+
+**Neo4j** (the ontology): `(:Concept {zone, id, name, type, definition, aliases})` nodes, unique per zone and id; `(:Concept)-[:RELATES {id, type, name, description}]->(:Concept)` relationships, always within one zone; `(:Concept)-[:SOURCED_FROM {quote}]->(:Page {path})` for evidence; and `(:Page)-[:LINKS_TO]->(:Concept)` for links in pages. A page node also lists the concept and relationship refs it links to, including links to concepts that don't exist (yet). Links are rebuilt from the pages on every start. Each change to a zone's ontology is one transaction that holds the zone's lock. **Export YAML** on the Ontology page (or `GET /api/ontology/export?zone=<zone>`) downloads a zone's ontology as a plain file.
 
 **Redis**: one hash per chunk (`pont:chunk:*`) in the index `idx:pont:chunks`, plus which version of each page is indexed.
 
-Back up the `minio-data` and `postgres-data` volumes. Redis can be rebuilt from MinIO (`POST /api/search/reindex`).
+Back up the `minio-data`, `neo4j-data`, and `postgres-data` volumes. Redis can be rebuilt from MinIO (`POST /api/search/reindex`).
 
 ## Search
 

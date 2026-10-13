@@ -59,7 +59,7 @@ claude                          # approve the "pont" server when asked
 
 Claude Code can then call pont's MCP tools as you:
 
-* **Read:** `search`, `read_entry`, `list_entries`, `get_concept`, `list_concepts`
+* **Read:** `search`, `read_entry`, `list_entries`, `get_concept`, `list_concepts`, and graph traversal: `explore_concept` (the concepts within 1–3 relationships of one, and the pages that link to it or that it came from) and `find_path` (the shortest chain of relationships between two concepts)
 * **Propose** (reviewed by a person before anything changes): `propose_edit`, `propose_new_page`, `propose_concept`, `propose_alias`, `propose_relation`, and `list_my_proposals` to see what happened to them
 
 Revoke a token on the same page when you no longer need it.
@@ -138,9 +138,9 @@ Page proposals appear on the **Agent Proposals** page (with a count in the sideb
 
 ### Ontology
 
-The **Ontology** page holds the concepts your documentation defines (metrics, processes, decisions, policies, systems, teams, and terms) and typed relationships between them, such as *Weekly active users calculated from Sessions*. It is stored in the bucket, versioned like the pages.
+The **Ontology** page holds the concepts your documentation defines (metrics, processes, decisions, policies, systems, teams, and terms) and typed relationships between them, such as *Weekly active users calculated from Sessions*. It is stored in **Neo4j**, a graph database in the Compose stack: concepts are nodes, relationships are edges, and pages are linked to the concepts they mention and the ones they are evidence for. Look at the graph directly in Neo4j Browser at <http://localhost:7474> (user `neo4j`, password `NEO4J_PASSWORD`, `pont-neo4j-dev` by default). **Export YAML** on the Ontology page downloads a zone's ontology as a plain file. Ontologies stored as YAML in the bucket by earlier versions of pont are imported on the first start and left in place.
 
-**Zones.** Each top-level folder is a zone with its own ontology, calculated only from that folder's pages, with its own runs and review queue. Pages at the root are in the default **General** zone (`ontology/ontology.yaml`); other zones are stored as `ontology/zones/<zone>.yaml`. Concept links name their zone: `#/concept/sales/revenue`, or `#/concept/revenue` in the default zone. The MCP tools `search`, `get_concept`, and `list_concepts` take an optional `zone`, and ontology proposals go to the zone of their evidence pages.
+**Zones.** Each top-level folder is a zone with its own ontology, calculated only from that folder's pages, with its own runs and review queue. Pages at the root are in the default **General** zone. Concept links name their zone: `#/concept/sales/revenue`, or `#/concept/revenue` in the default zone. The MCP tools `search`, `get_concept`, and `list_concepts` take an optional `zone`, and ontology proposals go to the zone of their evidence pages.
 
 The ontology is built by two AI agents ([Strands Agents](https://strandsagents.com) TypeScript SDK) that you run with **Calculate**:
 
