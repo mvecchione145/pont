@@ -234,7 +234,9 @@ Applying a finding saves a new page version, marked *From a review* in the histo
 
 The ontology is the shared vocabulary of your documentation: concepts (metrics, processes, decisions, policies, systems, teams, terms) and how they relate.
 
-1. Open **Ontology** and click **Calculate**. pont lists the pages added, changed, or deleted since the last calculation, with an estimated cost. Confirm to start.
+**Zones.** Each top-level folder is a zone with an ontology of its own, so "Revenue" in `sales/` and "Revenue" in `finance/` can be two different concepts. Pages at the top level are in the **General** zone. The Ontology page has a tab for each zone, and each zone is calculated, reviewed, and approved separately. Its agents only read and quote that zone's pages. Moving a page to another top-level folder moves it to that zone. Links can point to a concept in any zone, and the link picker shows concepts from the page's own zone first.
+
+1. Open **Ontology**, pick a zone, and click **Calculate**. pont lists the zone's pages added, changed, or deleted since its last calculation, with an estimated cost. Confirm to start. Different zones can calculate at the same time.
 2. Two agents run: one recommends updates and deletions for the existing ontology, the other recommends new concepts, aliases, and relationships. Every recommendation quotes the page that supports it.
 3. Review the recommendations: **Approve** or **Reject** each one, or use **Approve all** / **Reject all** for the whole queue or a group. Approvals run in a safe order (new concepts before the relationships that need them).
 

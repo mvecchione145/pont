@@ -173,7 +173,7 @@ export default function App() {
         )}
         {route.view === 'ontology' && (
           <div className="page wide">
-            <OntologyPage />
+            <OntologyPage zone={route.zone ?? ''} />
           </div>
         )}
         {route.view === 'settings' && (

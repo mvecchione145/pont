@@ -2714,3 +2714,43 @@ select {
 .pull-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 18%, var(--bg));
 }
+
+/* Zones: one tab per top-level folder on the Ontology page. */
+.zone-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 12px 0 4px;
+}
+.zone-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--fg-soft);
+  text-decoration: none;
+  font-size: 13px;
+}
+.zone-tab:hover {
+  background: var(--hover);
+}
+.zone-tab[aria-current='page'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+.zone-pending {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--down);
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+.zone-folder .row-label {
+  font-weight: 600;
+}

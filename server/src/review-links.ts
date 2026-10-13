@@ -1,4 +1,5 @@
 import type { Ontology } from './ontology/store.js';
+import { encodeRef, toRef } from './ontology/zones.js';
 
 // Finding ontology terms a page mentions but doesn't link. A mention counts
 // only in plain text: not inside code, an existing link, a URL, or HTML. The
@@ -56,17 +57,20 @@ export function findMention(markdown: string, term: string, ranges = protectedRa
   return null;
 }
 
-export const linkHref = (kind: LinkKind, id: string) => `#/${kind}/${id}`;
+// "ref" is "<zone>/<id>", or "<id>" in the default zone.
+export const linkHref = (kind: LinkKind, ref: string) => `#/${kind}/${encodeRef(ref)}`;
 
 export const alreadyLinks = (markdown: string, kind: LinkKind, id: string) =>
   markdown.includes(`](${linkHref(kind, id)})`);
 
-// Concepts and named relationships mentioned on the page but not linked yet,
-// in the order they first appear.
-export function linkCandidates(markdown: string, ontology: Ontology): LinkCandidate[] {
+// Concepts and named relationships of the zone's ontology mentioned on the
+// page but not linked yet, in the order they first appear. Candidate ids are
+// refs, ready for linkHref.
+export function linkCandidates(markdown: string, ontology: Ontology, zone: string): LinkCandidate[] {
   const ranges = protectedRanges(markdown);
   const found: { candidate: LinkCandidate; first: number }[] = [];
-  const consider = (kind: LinkKind, id: string, name: string, type: string, description: string, names: string[]) => {
+  const consider = (kind: LinkKind, itemId: string, name: string, type: string, description: string, names: string[]) => {
+    const id = toRef(zone, itemId);
     if (alreadyLinks(markdown, kind, id)) return;
     const mentions = names
       .map((n) => findMention(markdown, n, ranges))

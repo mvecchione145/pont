@@ -212,6 +212,20 @@ export async function migrate(): Promise<void> {
     -- pont deletes its own pont/... branch once the pull request is merged.
     ALTER TABLE github_pull_requests ADD COLUMN IF NOT EXISTS branch_deleted boolean NOT NULL DEFAULT false;
 
+    -- Zones: each top-level folder has its own ontology, runs, snapshots, and
+    -- review queue ('' is the default zone, for pages at the root). Snapshots
+    -- from before zones existed covered every page for the one ontology, which
+    -- became the default zone's: keep those of root pages, and drop the rest
+    -- so each folder's first calculation sees its pages as new.
+    ALTER TABLE ontology_runs ADD COLUMN IF NOT EXISTS zone text NOT NULL DEFAULT '';
+    ALTER TABLE ontology_recommendations ADD COLUMN IF NOT EXISTS zone text NOT NULL DEFAULT '';
+    ALTER TABLE ontology_snapshots ADD COLUMN IF NOT EXISTS zone text;
+    UPDATE ontology_snapshots SET zone = '' WHERE zone IS NULL AND position('/' in path) = 0;
+    DELETE FROM ontology_snapshots WHERE zone IS NULL;
+    ALTER TABLE ontology_snapshots ALTER COLUMN zone SET NOT NULL;
+    CREATE INDEX IF NOT EXISTS ontology_snapshots_zone ON ontology_snapshots (zone);
+    CREATE INDEX IF NOT EXISTS ontology_recommendations_zone ON ontology_recommendations (zone, status);
+
     CREATE TABLE IF NOT EXISTS page_moves (
       from_path text NOT NULL,
       to_path   text NOT NULL,

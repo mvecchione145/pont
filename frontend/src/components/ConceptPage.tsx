@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api, CONCEPT_TYPES, RELATION_TYPES, type ConceptDetail, type RelationDetail } from '../api';
 import { href, navigate } from '../route';
+import { toRef, zoneName } from '../zones';
 
 const human = (t: string) => t.replace(/_/g, ' ');
 
@@ -74,6 +75,23 @@ function DeleteButton({ what, linked, onDelete }: { what: string; linked: number
   );
 }
 
+// Where an item sits: "Ontology / <zone> / …", the zone only when it isn't
+// the default one.
+function Breadcrumbs({ zone, last }: { zone: string; last: string }) {
+  return (
+    <p className="muted breadcrumbs-line">
+      <a href={href({ view: 'ontology' })}>Ontology</a> /{' '}
+      {zone && (
+        <>
+          <a href={href({ view: 'ontology', zone })}>{zoneName(zone)}</a> /{' '}
+        </>
+      )}
+      {last}
+    </p>
+  );
+}
+
+// id is a ref: "<zone>/<id>", or "<id>" in the default zone.
 export function ConceptPage({ id }: { id: string }) {
   const [c, setC] = useState<ConceptDetail | null>(null);
   const [editing, setEditing] = useState(false);
@@ -98,7 +116,7 @@ export function ConceptPage({ id }: { id: string }) {
     e.preventDefault();
     if (!c) return;
     try {
-      await api.updateConcept(c.id, {
+      await api.updateConcept(id, {
         name: form.name,
         type: form.type,
         definition: form.definition,
@@ -117,7 +135,7 @@ export function ConceptPage({ id }: { id: string }) {
     e.preventDefault();
     if (!c) return;
     try {
-      await api.createRelation({ from: c.id, ...rel });
+      await api.createRelation(c.zone, { from: c.id, ...rel });
       setRel({ type: 'related_to', to: '', name: '', description: '' });
       setNotice('Relationship added.');
       load();
@@ -130,9 +148,7 @@ export function ConceptPage({ id }: { id: string }) {
 
   return (
     <div className="ontology-item">
-      <p className="muted breadcrumbs-line">
-        <a href={href({ view: 'ontology' })}>Ontology</a> / {c.type}
-      </p>
+      <Breadcrumbs zone={c.zone} last={c.type} />
 
       {editing ? (
         <form className="settings-form" onSubmit={save}>
@@ -183,8 +199,8 @@ export function ConceptPage({ id }: { id: string }) {
               linked={c.linkedFrom.length}
               onDelete={async () => {
                 try {
-                  await api.deleteConcept(c.id);
-                  navigate({ view: 'ontology' });
+                  await api.deleteConcept(id);
+                  navigate({ view: 'ontology', zone: c.zone || undefined });
                 } catch (err) {
                   setError((err as Error).message);
                 }
@@ -202,7 +218,7 @@ export function ConceptPage({ id }: { id: string }) {
         <ul className="plain-list">
           {c.relations.map((r) => (
             <li key={r.id}>
-              <a href={href({ view: 'relation', id: r.id })}>{r.label}</a>
+              <a href={href({ view: 'relation', id: toRef(c.zone, r.id) })}>{r.label}</a>
               {r.name && (
                 <span className="muted">
                   {' '}
@@ -249,7 +265,7 @@ export function RelationPage({ id }: { id: string }) {
     e.preventDefault();
     if (!r) return;
     try {
-      await api.updateRelation(r.id, { ...form, expectedUpdatedAt: r.updatedAt });
+      await api.updateRelation(id, { ...form, expectedUpdatedAt: r.updatedAt });
       setEditing(false);
       load();
     } catch (err) {
@@ -259,13 +275,11 @@ export function RelationPage({ id }: { id: string }) {
 
   if (!r) return error ? <p className="down">{error}</p> : <p className="muted">Loading…</p>;
   const concept = (c: RelationDetail['fromConcept'], fallback: string) =>
-    c ? <a href={href({ view: 'concept', id: c.id })}>{c.name}</a> : <span className="muted">{fallback} (deleted)</span>;
+    c ? <a href={href({ view: 'concept', id: toRef(r.zone, c.id) })}>{c.name}</a> : <span className="muted">{fallback} (deleted)</span>;
 
   return (
     <div className="ontology-item">
-      <p className="muted breadcrumbs-line">
-        <a href={href({ view: 'ontology' })}>Ontology</a> / Relationship
-      </p>
+      <Breadcrumbs zone={r.zone} last="Relationship" />
       {editing ? (
         <form className="settings-form" onSubmit={save}>
           <div className="relation-edit-row">
@@ -337,8 +351,12 @@ export function RelationPage({ id }: { id: string }) {
               linked={r.linkedFrom.length}
               onDelete={async () => {
                 try {
-                  await api.deleteRelation(r.id);
-                  navigate(r.fromConcept ? { view: 'concept', id: r.fromConcept.id } : { view: 'ontology' });
+                  await api.deleteRelation(id);
+                  navigate(
+                    r.fromConcept
+                      ? { view: 'concept', id: toRef(r.zone, r.fromConcept.id) }
+                      : { view: 'ontology', zone: r.zone || undefined },
+                  );
                 } catch (err) {
                   setError((err as Error).message);
                 }

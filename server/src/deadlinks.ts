@@ -3,6 +3,7 @@ import type { User } from './auth.js';
 import { EntryError, entryEvents, getEntry, listEntries, saveEntry } from './entries.js';
 import { hasHistory, listVersions } from './history.js';
 import { findConcept, readOntology, type Ontology } from './ontology/store.js';
+import { encodeRef, fromRef, toRef, zoneName } from './ontology/zones.js';
 import { headingsOf } from './pagelinks.js';
 import { internalLinks, pageHref, type FoundLink, type LinkTarget } from './markdown-links.js';
 
@@ -134,15 +135,16 @@ const nameOf = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 
 interface Context {
   pages: Set<string>;
-  ontology: Ontology;
+  // Each zone's ontology, read once per check.
+  ontologies: Map<string, Promise<Ontology>>;
   // Per-check caches: the same target is often linked from many pages.
   moves: Map<string, Promise<string | null>>;
   history: Map<string, Promise<boolean>>;
 }
 
 async function context(): Promise<Context> {
-  const [entries, { ontology }] = await Promise.all([listEntries(), readOntology()]);
-  return { pages: new Set(entries.map((e) => e.path)), ontology, moves: new Map(), history: new Map() };
+  const entries = await listEntries();
+  return { pages: new Set(entries.map((e) => e.path)), ontologies: new Map(), moves: new Map(), history: new Map() };
 }
 
 const cached = <T>(map: Map<string, Promise<T>>, key: string, load: () => Promise<T>) => {
@@ -164,29 +166,34 @@ function checkHeading(path: string, section: string): { ok: true } | { ok: false
 async function checkLink(link: FoundLink, ctx: Context): Promise<Omit<DeadLink, 'count'> | null> {
   const t = link.target;
   if (t.kind === 'concept' || t.kind === 'relation') {
-    const items = t.kind === 'concept' ? ctx.ontology.concepts : ctx.ontology.relations;
-    if (items.some((i) => i.id === t.id)) return null;
+    // A concept link names its zone: #/concept/<zone>/<id>, or #/concept/<id>
+    // in the default zone. Suggestions come from that same zone.
+    const { zone, id } = fromRef(t.id);
+    const ontology = await cached(ctx.ontologies, zone, async () => (await readOntology(zone)).ontology);
+    const items = t.kind === 'concept' ? ontology.concepts : ontology.relations;
+    if (items.some((i) => i.id === id)) return null;
+    const linkTo = (kind: string, itemId: string) => `#/${kind}/${encodeRef(toRef(zone, itemId))}`;
     let suggestion: DeadLink['suggestion'] = null;
     if (t.kind === 'concept') {
       const match =
-        findConcept(ctx.ontology, link.text) ?? closest(ctx.ontology.concepts, (c) => c.name, link.text || t.id, 0.6);
+        findConcept(ontology, link.text) ?? closest(ontology.concepts, (c) => c.name, link.text || id, 0.6);
       if (match) {
         suggestion = {
-          href: `#/concept/${encodeURIComponent(match.id)}`,
+          href: linkTo('concept', match.id),
           label: match.name,
           reason: normalize(match.name) === normalize(link.text) ? 'A concept with this name exists.' : 'The closest concept by name.',
         };
       }
     } else {
-      const named = ctx.ontology.relations.filter((r) => r.name);
+      const named = ontology.relations.filter((r) => r.name);
       const match = closest(named, (r) => r.name!, link.text, 0.6);
-      if (match) suggestion = { href: `#/relation/${encodeURIComponent(match.id)}`, label: match.name!, reason: 'The closest relationship by name.' };
+      if (match) suggestion = { href: linkTo('relation', match.id), label: match.name!, reason: 'The closest relationship by name.' };
     }
     return {
       href: link.href,
       text: link.text,
       problem: t.kind === 'concept' ? 'concept_missing' : 'relation_missing',
-      message: `The ${t.kind === 'concept' ? 'concept' : 'relationship'} "${t.id}" no longer exists in the ontology.`,
+      message: `The ${t.kind === 'concept' ? 'concept' : 'relationship'} "${id}" no longer exists in the ${zoneName(zone)} zone's ontology.`,
       suggestion,
     };
   }

@@ -112,7 +112,9 @@ async function keywordSearch(terms: string[]): Promise<Map<string, Hit & { keywo
   );
 }
 
-export async function search(query: string, limit = 8): Promise<SearchResult[]> {
+// "only", when given, keeps results whose page path it accepts (for example
+// the pages of one zone).
+export async function search(query: string, limit = 8, only?: (path: string) => boolean): Promise<SearchResult[]> {
   if (status.state !== 'ready') {
     throw new SearchUnavailableError(`Search is not ready yet: ${status.detail}`);
   }
@@ -130,6 +132,7 @@ export async function search(query: string, limit = 8): Promise<SearchResult[]> 
   const results: SearchResult[] = [];
   for (const id of new Set([...byMeaning.keys(), ...byKeyword.keys()])) {
     const hit = (byMeaning.get(id) ?? byKeyword.get(id))!;
+    if (only && !only(hit.path)) continue;
     const similarity = byMeaning.get(id)?.similarity ?? floor;
     const match = byKeyword.get(id);
     const keyword = match ? match.keyword * match.coverage : 0;

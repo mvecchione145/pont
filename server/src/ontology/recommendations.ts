@@ -21,6 +21,8 @@ export type Recommendation =
 
 export interface NewRecommendation {
   runId: string | null;
+  // The zone whose ontology this changes.
+  zone: string;
   // Who proposed it, for recommendations made over MCP.
   proposedBy?: string;
   workflow: Workflow;
@@ -32,6 +34,7 @@ export interface NewRecommendation {
 
 export interface StoredRecommendation {
   id: string;
+  zone: string;
   runId: string | null;
   proposedBy: string | null;
   workflow: Workflow;
@@ -47,8 +50,8 @@ export interface StoredRecommendation {
   createdAt: string;
 }
 
-// Identifies "the same suggestion" across runs, so a rejected one isn't
-// suggested again and a pending one isn't duplicated.
+// Identifies "the same suggestion" across runs (within a zone), so a rejected
+// one isn't suggested again and a pending one isn't duplicated.
 export function fingerprint(r: Recommendation): string {
   const normalized = JSON.stringify(r, (_k, v) => (typeof v === 'string' ? v.trim().toLowerCase() : v));
   return createHash('sha256').update(normalized).digest('hex');
@@ -59,8 +62,8 @@ export type SaveOutcome = 'saved' | 'duplicate' | 'previously-rejected';
 export async function saveRecommendation(rec: NewRecommendation): Promise<SaveOutcome> {
   const fp = fingerprint(rec.recommendation);
   const { rows } = await db.query<{ status: string }>(
-    "SELECT status FROM ontology_recommendations WHERE fingerprint = $1 AND status IN ('pending', 'rejected')",
-    [fp],
+    "SELECT status FROM ontology_recommendations WHERE fingerprint = $1 AND zone = $2 AND status IN ('pending', 'rejected')",
+    [fp, rec.zone],
   );
   if (rows.some((r) => r.status === 'rejected')) return 'previously-rejected';
   if (rows.length) return 'duplicate';
@@ -69,15 +72,15 @@ export async function saveRecommendation(rec: NewRecommendation): Promise<SaveOu
   if (rec.recommendation.action === 'create_concept') {
     const { rows: sameName } = await db.query(
       `SELECT 1 FROM ontology_recommendations
-       WHERE status = 'pending' AND action = 'create_concept' AND lower(payload->>'name') = lower($1)`,
-      [rec.recommendation.payload.name.trim()],
+       WHERE status = 'pending' AND zone = $2 AND action = 'create_concept' AND lower(payload->>'name') = lower($1)`,
+      [rec.recommendation.payload.name.trim(), rec.zone],
     );
     if (sameName.length) return 'duplicate';
   }
   await db.query(
     `INSERT INTO ontology_recommendations
-       (run_id, workflow, action, payload, rationale, evidence, confidence, fingerprint, proposed_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+       (run_id, workflow, action, payload, rationale, evidence, confidence, fingerprint, proposed_by, zone)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       rec.runId,
       rec.workflow,
@@ -88,6 +91,7 @@ export async function saveRecommendation(rec: NewRecommendation): Promise<SaveOu
       rec.confidence,
       fp,
       rec.proposedBy ?? null,
+      rec.zone,
     ],
   );
   return 'saved';
@@ -95,6 +99,7 @@ export async function saveRecommendation(rec: NewRecommendation): Promise<SaveOu
 
 interface Row {
   id: string;
+  zone: string;
   run_id: string | null;
   proposed_by: string | null;
   workflow: Workflow;
@@ -112,6 +117,7 @@ interface Row {
 
 export const toStored = (r: Row): StoredRecommendation => ({
   id: r.id,
+  zone: r.zone,
   runId: r.run_id,
   proposedBy: r.proposed_by,
   workflow: r.workflow,
@@ -127,19 +133,32 @@ export const toStored = (r: Row): StoredRecommendation => ({
   createdAt: r.created_at.toISOString(),
 });
 
-export async function listRecommendations(status: 'pending' | 'decided', limit = 200): Promise<StoredRecommendation[]> {
+export async function listRecommendations(
+  zone: string,
+  status: 'pending' | 'decided',
+  limit = 200,
+): Promise<StoredRecommendation[]> {
   const { rows } = await db.query<Row>(
     status === 'pending'
-      ? "SELECT * FROM ontology_recommendations WHERE status = 'pending' ORDER BY workflow, created_at LIMIT $1"
-      : "SELECT * FROM ontology_recommendations WHERE status <> 'pending' ORDER BY decided_at DESC NULLS LAST LIMIT $1",
-    [limit],
+      ? "SELECT * FROM ontology_recommendations WHERE zone = $1 AND status = 'pending' ORDER BY workflow, created_at LIMIT $2"
+      : "SELECT * FROM ontology_recommendations WHERE zone = $1 AND status <> 'pending' ORDER BY decided_at DESC NULLS LAST LIMIT $2",
+    [zone, limit],
   );
   return rows.map(toStored);
 }
 
+// Pending recommendations per zone (zones with none are left out).
+export async function pendingByZone(): Promise<Map<string, number>> {
+  const { rows } = await db.query<{ zone: string; n: number }>(
+    "SELECT zone, count(*)::int AS n FROM ontology_recommendations WHERE status = 'pending' GROUP BY zone",
+  );
+  return new Map(rows.map((r) => [r.zone, r.n]));
+}
+
 export async function pendingRecommendationCount(): Promise<number> {
-  const { rows } = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM ontology_recommendations WHERE status = 'pending'");
-  return rows[0].n;
+  let total = 0;
+  for (const n of (await pendingByZone()).values()) total += n;
+  return total;
 }
 
 export async function getRecommendation(id: string): Promise<StoredRecommendation | null> {

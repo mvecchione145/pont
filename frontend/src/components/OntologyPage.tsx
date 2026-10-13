@@ -9,6 +9,7 @@ import {
   type OntologyRun,
 } from '../api';
 import { href, navigate } from '../route';
+import { toRef, zoneName, type ZoneSummary } from '../zones';
 
 const POLL_MS = 2000;
 
@@ -27,11 +28,13 @@ function pageLink(path: string, quote?: string) {
 // --- The "are you sure" dialog ---------------------------------------------
 
 function ConfirmDialog({
+  zone,
   preview,
   onConfirm,
   onClose,
   busy,
 }: {
+  zone: string;
   preview: ChangePreview;
   onConfirm: () => void;
   onClose: () => void;
@@ -46,7 +49,7 @@ function ConfirmDialog({
   return (
     <div className="dialog-backdrop" onMouseDown={() => !busy && onClose()}>
       <div className="confirm-dialog" role="alertdialog" aria-labelledby="confirm-title" onMouseDown={(ev) => ev.stopPropagation()}>
-        <h2 id="confirm-title">Calculate the ontology?</h2>
+        <h2 id="confirm-title">Calculate the {zoneName(zone)} ontology?</h2>
         <p>
           This sends <strong>{preview.total} changed {preview.total === 1 ? 'page' : 'pages'}</strong> to{' '}
           <strong>{e.provider === 'anthropic' ? 'Anthropic' : 'your OpenAI-compatible provider'}</strong> ({e.model}),
@@ -244,7 +247,7 @@ function BulkActions({
 
 // --- Concept browser --------------------------------------------------------
 
-function ConceptList({ ontology }: { ontology: Ontology }) {
+function ConceptList({ zone, ontology }: { zone: string; ontology: Ontology }) {
   const [filter, setFilter] = useState('');
   const byId = useMemo(() => new Map(ontology.concepts.map((c) => [c.id, c])), [ontology]);
   const f = filter.trim().toLowerCase();
@@ -284,7 +287,7 @@ function ConceptList({ ontology }: { ontology: Ontology }) {
                 <li key={c.id} className="concept">
                   <div>
                     <strong>
-                      <a className="concept-link" href={href({ view: 'concept', id: c.id })}>
+                      <a className="concept-link" href={href({ view: 'concept', id: toRef(zone, c.id) })}>
                         {c.name}
                       </a>
                     </strong>
@@ -297,7 +300,7 @@ function ConceptList({ ontology }: { ontology: Ontology }) {
                       {relationsOf(c).map((r, i) => (
                         <span key={r.id}>
                           {i > 0 && ' · '}
-                          <a href={href({ view: 'relation', id: r.id })}>{r.label}</a>
+                          <a href={href({ view: 'relation', id: toRef(zone, r.id) })}>{r.label}</a>
                         </span>
                       ))}
                     </p>
@@ -321,7 +324,7 @@ function ConceptList({ ontology }: { ontology: Ontology }) {
 }
 
 // Opened from the "＋ New concept" button next to Calculate.
-function NewConceptForm({ onClose }: { onClose: () => void }) {
+function NewConceptForm({ zone, onClose }: { zone: string; onClose: () => void }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('Term');
   const [definition, setDefinition] = useState('');
@@ -332,8 +335,8 @@ function NewConceptForm({ onClose }: { onClose: () => void }) {
       onSubmit={async (e) => {
         e.preventDefault();
         try {
-          const c = await api.createConcept({ name, type, definition });
-          navigate({ view: 'concept', id: c.id });
+          const c = await api.createConcept(zone, { name, type, definition });
+          navigate({ view: 'concept', id: toRef(zone, c.id) });
         } catch (err) {
           setError((err as Error).message);
         }
@@ -359,7 +362,33 @@ function NewConceptForm({ onClose }: { onClose: () => void }) {
 
 // --- Page -------------------------------------------------------------------
 
-export function OntologyPage() {
+// One top-level folder per zone, plus the default zone for pages at the root.
+function ZoneTabs({ zones, current }: { zones: ZoneSummary[]; current: string }) {
+  if (zones.length < 2) return null;
+  return (
+    <nav className="zone-tabs" aria-label="Zones">
+      {zones.map((z) => (
+        <a
+          key={z.zone}
+          className="zone-tab"
+          href={href({ view: 'ontology', zone: z.zone || undefined })}
+          aria-current={z.zone === current ? 'page' : undefined}
+          title={`${z.pages} ${z.pages === 1 ? 'page' : 'pages'} · ${z.concepts} ${z.concepts === 1 ? 'concept' : 'concepts'}`}
+        >
+          {z.name}
+          {z.pending > 0 && (
+            <span className="zone-pending" aria-label={`${z.pending} waiting for review`}>
+              {z.pending}
+            </span>
+          )}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+export function OntologyPage({ zone }: { zone: string }) {
+  const [zones, setZones] = useState<ZoneSummary[]>([]);
   const [ontology, setOntology] = useState<Ontology | null>(null);
   const [preview, setPreview] = useState<ChangePreview | null>(null);
   const [runs, setRuns] = useState<OntologyRun[]>([]);
@@ -375,12 +404,14 @@ export function OntologyPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const [o, p, r, rec] = await Promise.all([
-        api.ontology(),
-        api.ontologyChanges(),
-        api.ontologyRuns(),
-        api.ontologyRecommendations(),
+      const [z, o, p, r, rec] = await Promise.all([
+        api.zones(),
+        api.ontology(zone),
+        api.ontologyChanges(zone),
+        api.ontologyRuns(zone),
+        api.ontologyRecommendations(zone),
       ]);
+      setZones(z);
       setOntology(o);
       setPreview(p);
       setRuns(r);
@@ -388,9 +419,19 @@ export function OntologyPage() {
     } catch (err) {
       setError((err as Error).message);
     }
-  }, []);
+  }, [zone]);
 
+  // Switching zones: clear the previous zone's state before loading.
   useEffect(() => {
+    setOntology(null);
+    setPreview(null);
+    setRuns([]);
+    setRecs([]);
+    setNotices({});
+    setSummary(null);
+    setError(null);
+    setConfirming(false);
+    setCreatingConcept(false);
     void refresh();
   }, [refresh]);
 
@@ -402,19 +443,19 @@ export function OntologyPage() {
       if (!run) return;
       if (run.status === 'running') {
         setRuns((current) => current.map((r) => (r.id === run.id ? run : r)));
-        api.ontologyRecommendations().then(setRecs, () => undefined);
+        api.ontologyRecommendations(zone).then(setRecs, () => undefined);
       } else {
         void refresh();
       }
     }, POLL_MS);
     return () => window.clearInterval(timer);
-  }, [active, refresh]);
+  }, [active, refresh, zone]);
 
   async function start() {
     setStarting(true);
     setError(null);
     try {
-      const run = await api.startOntologyRun();
+      const run = await api.startOntologyRun(zone);
       setConfirming(false);
       setRuns((current) => [run, ...current]);
     } catch (err) {
@@ -430,7 +471,7 @@ export function OntologyPage() {
     if (!outcome.keep) {
       window.setTimeout(() => {
         setRecs((current) => current.filter((r) => r.id !== id));
-        api.ontology().then(setOntology, () => undefined);
+        api.ontology(zone).then(setOntology, () => undefined);
       }, 900);
     }
   }
@@ -457,7 +498,7 @@ export function OntologyPage() {
       if (failedIds.size) {
         window.setTimeout(() => setRecs((current) => current.filter((r) => !failedIds.has(r.id))), 6000);
       }
-      api.ontology().then(setOntology, () => undefined);
+      api.ontology(zone).then(setOntology, () => undefined);
     } catch (err) {
       setError((err as Error).message);
       void refresh();
@@ -480,6 +521,14 @@ export function OntologyPage() {
           <p className="lead">
             The concepts your documentation defines and how they relate. Agents suggest changes; you decide.
           </p>
+          <ZoneTabs zones={zones} current={zone} />
+          {zones.length > 1 && (
+            <p className="muted hint">
+              {zone
+                ? `The ${zoneName(zone)} zone: pages in the “${zone}” folder, with an ontology of their own.`
+                : 'The General zone: pages that are not in a folder. Each top-level folder is a zone with its own ontology.'}
+            </p>
+          )}
         </div>
         <div className="calculate">
           <div className="calculate-buttons">
@@ -498,13 +547,13 @@ export function OntologyPage() {
                 : active
                   ? 'A calculation is running.'
                   : preview.total === 0
-                    ? 'Nothing changed since the last calculation.'
-                    : `${preview.total} ${preview.total === 1 ? 'page has' : 'pages have'} changed since the last calculation.`}
+                    ? 'Nothing changed in this zone since the last calculation.'
+                    : `${preview.total} ${preview.total === 1 ? 'page has' : 'pages have'} changed in this zone since the last calculation.`}
           </span>
         </div>
       </div>
 
-      {creatingConcept && <NewConceptForm onClose={() => setCreatingConcept(false)} />}
+      {creatingConcept && <NewConceptForm zone={zone} onClose={() => setCreatingConcept(false)} />}
 
       {error && (
         <div className="banner">
@@ -579,7 +628,7 @@ export function OntologyPage() {
         <h2 className="section-heading">
           Concepts ({ontology?.concepts.length ?? 0}) · Relationships ({ontology?.relations.length ?? 0})
         </h2>
-        {ontology && <ConceptList ontology={ontology} />}
+        {ontology && <ConceptList zone={zone} ontology={ontology} />}
       </section>
 
       {runs.length > 0 && (
@@ -618,7 +667,7 @@ export function OntologyPage() {
       )}
 
       {confirming && preview && preview.estimate && (
-        <ConfirmDialog preview={preview} busy={starting} onConfirm={start} onClose={() => setConfirming(false)} />
+        <ConfirmDialog zone={zone} preview={preview} busy={starting} onConfirm={start} onClose={() => setConfirming(false)} />
       )}
     </div>
   );

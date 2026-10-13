@@ -9,8 +9,9 @@ import type { User } from './auth.js';
 import { listProposals, proposeEdit, proposeNewPage, ProposalError } from './proposals/store.js';
 import { verifyEvidence } from './ontology/evidence.js';
 import { saveRecommendation, type Recommendation } from './ontology/recommendations.js';
-import { CONCEPT_TYPES, findConcept, readOntology, RELATION_TYPES } from './ontology/store.js';
+import { CONCEPT_TYPES, findConcept, readOntology, RELATION_TYPES, type Concept } from './ontology/store.js';
 import { conceptDetail, relationDetail, relationLabel } from './ontology/edit.js';
+import { fromRef, inZone, listZones, parseZone, toRef, ZoneError, zoneName, zoneOf } from './ontology/zones.js';
 
 const INSTRUCTIONS = `pont holds this organization's knowledge, written by the people who know it:
 business definitions and metrics, decisions and their reasoning, and processes.
@@ -19,9 +20,13 @@ which finds relevant passages by meaning and by exact terms; then read_entry to
 read a whole entry. list_entries shows everything that exists, optionally
 within a folder.
 
-Pages may link terms to the ontology, e.g. [WAU](#/concept/weekly-active-users)
-or [..](#/relation/<id>): use get_concept for a concept's definition, aliases,
-relationships, and the pages that link to it. list_concepts lists them all.
+Knowledge is split into zones: each top-level folder is a zone (pages at the
+top level are in the default zone), and each zone has its own ontology, so the
+same term can mean different things in different zones. Pages may link terms
+to the ontology, e.g. [WAU](#/concept/weekly-active-users) (default zone) or
+[Revenue](#/concept/sales/revenue) (the "sales" zone), or [..](#/relation/<id>):
+use get_concept with the link target for a concept's definition, aliases,
+relationships, and the pages that link to it. list_concepts lists them.
 
 If you find something missing, outdated, or contradictory, you can propose a
 fix: propose_edit or propose_new_page for pages, and propose_concept,
@@ -60,12 +65,13 @@ function buildServer(user: User): McpServer {
       inputSchema: {
         query: z.string().min(1).describe('What you want to know, for example "how do we define an active user"'),
         limit: z.number().int().min(1).max(20).optional().describe('Maximum passages to return (default 8)'),
+        zone: z.string().optional().describe('Only search this zone (a top-level folder, for example "sales")'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ query, limit }) => {
+    async ({ query, limit, zone }) => {
       try {
-        const results = await search(query, limit ?? 8);
+        const results = await search(query, limit ?? 8, zone ? inZone(parseZone(zone)) : undefined);
         if (results.length === 0) return text(`No entries match "${query}".`);
         const blocks = results.map((r, i) => {
           const where = r.headings ? `${r.path} › ${r.headings}` : r.path;
@@ -74,7 +80,7 @@ function buildServer(user: User): McpServer {
         const count = results.length === 1 ? '1 passage' : `${results.length} passages`;
         return text(`${count} for "${query}":\n\n${blocks.join('\n\n---\n\n')}`);
       } catch (err) {
-        if (err instanceof SearchUnavailableError) return text(err.message, true);
+        if (err instanceof SearchUnavailableError || err instanceof ZoneError) return text(err.message, true);
         throw err;
       }
     },
@@ -147,45 +153,78 @@ function buildServer(user: User): McpServer {
   return server;
 }
 
+const zoneLabel = (zone: string) => (zone ? `zone "${zone}"` : 'default zone');
+
 function registerOntologyTools(server: McpServer) {
+  const zoneParam = z
+    .string()
+    .optional()
+    .describe('The zone (top-level folder, for example "sales"); "" for the default zone. Omit to look in every zone.');
+
   server.registerTool(
     'get_concept',
     {
       title: 'Get an ontology concept or relationship',
       description:
-        'Returns a concept (by id, name, or alias) with its type, definition, aliases, relationships, and the pages ' +
-        'that link to it. Also accepts a relationship id from a #/relation/<id> link.',
-      inputSchema: { concept: z.string().describe('Concept id, name, or alias; or a relationship id') },
+        'Returns a concept (by id, name, or alias) with its zone, type, definition, aliases, relationships, and the pages ' +
+        'that link to it. Also accepts a link target such as "sales/revenue" from #/concept/sales/revenue, or a ' +
+        'relationship id from a #/relation/<id> link. Without a zone, every zone is searched and all matches are returned.',
+      inputSchema: { concept: z.string().describe('Concept id, name, or alias; or a relationship id'), zone: zoneParam },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ concept }) => {
-      const { ontology } = await readOntology();
-      const c = findConcept(ontology, concept);
-      if (c) {
-        const d = await conceptDetail(c.id);
-        return text(
-          [
-            `${d.name} (${d.type}, id ${d.id})`,
-            d.aliases.length ? `Also called: ${d.aliases.join(', ')}` : '',
-            d.definition ? `Definition: ${d.definition}` : '',
-            d.relations.length ? `Relationships:\n${d.relations.map((r) => `- ${r.label} [${r.id}]${r.description ? `: ${r.description}` : ''}`).join('\n')}` : '',
-            d.linkedFrom.length ? `Linked from pages: ${d.linkedFrom.join(', ')}` : '',
-            d.sources.length ? `Sources: ${[...new Set(d.sources.map((s) => s.path))].join(', ')}` : '',
-          ].filter(Boolean).join('\n'),
-        );
+    async ({ concept, zone }) => {
+      // Where to look, as [zone, id or name] pairs: the given zone; a link
+      // target's zone; or every zone (also when a name with a "/" in it
+      // turns out not to be a link target).
+      const wanted = concept.trim();
+      let lookups: [string, string][];
+      try {
+        const everyZone = async () => (await listZones()).map((z): [string, string] => [z.zone, wanted]);
+        if (zone !== undefined) lookups = [[parseZone(zone), wanted]];
+        else if (wanted.includes('/')) {
+          const parsed = fromRef(wanted);
+          lookups = [[parsed.zone, parsed.id], ...(await everyZone())];
+        } else lookups = await everyZone();
+      } catch (err) {
+        if (err instanceof ZoneError) return text(err.message, true);
+        throw err;
       }
-      if (ontology.relations.some((r) => r.id === concept.trim())) {
-        const r = await relationDetail(concept.trim());
-        return text(
-          [
-            `${r.label} (relationship, id ${r.id})`,
-            `${r.fromConcept?.name ?? r.from} ${r.type.replace(/_/g, ' ')} ${r.toConcept?.name ?? r.to}`,
-            r.description ? `Description: ${r.description}` : '',
-            r.linkedFrom.length ? `Linked from pages: ${r.linkedFrom.join(', ')}` : '',
-          ].filter(Boolean).join('\n'),
-        );
+      const found: string[] = [];
+      const seen = new Set<string>();
+      for (const [z, ref] of lookups) {
+        // A link target that resolved needs no search by name.
+        if (found.length && ref === wanted && lookups[0][1] !== wanted) break;
+        const { ontology } = await readOntology(z);
+        const c = findConcept(ontology, ref);
+        if (c) {
+          if (seen.has(toRef(z, c.id))) continue;
+          seen.add(toRef(z, c.id));
+          const d = await conceptDetail(z, c.id);
+          found.push(
+            [
+              `${d.name} (${d.type}, ${zoneLabel(z)}, link target ${toRef(z, d.id)})`,
+              d.aliases.length ? `Also called: ${d.aliases.join(', ')}` : '',
+              d.definition ? `Definition: ${d.definition}` : '',
+              d.relations.length ? `Relationships:\n${d.relations.map((r) => `- ${r.label} [${r.id}]${r.description ? `: ${r.description}` : ''}`).join('\n')}` : '',
+              d.linkedFrom.length ? `Linked from pages: ${d.linkedFrom.join(', ')}` : '',
+              d.sources.length ? `Sources: ${[...new Set(d.sources.map((s) => s.path))].join(', ')}` : '',
+            ].filter(Boolean).join('\n'),
+          );
+        } else if (ontology.relations.some((r) => r.id === ref) && !seen.has(toRef(z, ref))) {
+          seen.add(toRef(z, ref));
+          const r = await relationDetail(z, ref);
+          found.push(
+            [
+              `${r.label} (relationship, ${zoneLabel(z)}, link target ${toRef(z, r.id)})`,
+              `${r.fromConcept?.name ?? r.from} ${r.type.replace(/_/g, ' ')} ${r.toConcept?.name ?? r.to}`,
+              r.description ? `Description: ${r.description}` : '',
+              r.linkedFrom.length ? `Linked from pages: ${r.linkedFrom.join(', ')}` : '',
+            ].filter(Boolean).join('\n'),
+          );
+        }
       }
-      return text(`No concept or relationship "${concept}". Try list_concepts.`, true);
+      if (!found.length) return text(`No concept or relationship "${concept}". Try list_concepts.`, true);
+      return text(found.join('\n\n---\n\n'));
     },
   );
 
@@ -193,18 +232,32 @@ function registerOntologyTools(server: McpServer) {
     'list_concepts',
     {
       title: 'List ontology concepts',
-      description: 'Lists every concept in the ontology (id, name, type, aliases) and the relationships between them.',
-      inputSchema: {},
+      description:
+        'Lists the concepts (id, name, type, aliases) and relationships in a zone\'s ontology, or in every zone when no zone is given.',
+      inputSchema: { zone: zoneParam },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => {
-      const { ontology } = await readOntology();
-      if (!ontology.concepts.length) return text('The ontology is empty.');
-      const concepts = ontology.concepts.map(
-        (c) => `- ${c.name} (${c.type}, id ${c.id})${c.aliases.length ? `, also ${c.aliases.join(', ')}` : ''}`,
-      );
-      const relations = ontology.relations.map((r) => `- ${relationLabel(ontology, r)} [${r.id}]`);
-      return text(`Concepts:\n${concepts.join('\n')}${relations.length ? `\n\nRelationships:\n${relations.join('\n')}` : ''}`);
+    async ({ zone }) => {
+      let zones: string[];
+      try {
+        zones = zone !== undefined ? [parseZone(zone)] : (await listZones()).map((z) => z.zone);
+      } catch (err) {
+        if (err instanceof ZoneError) return text(err.message, true);
+        throw err;
+      }
+      const sections: string[] = [];
+      for (const z of zones) {
+        const { ontology } = await readOntology(z);
+        if (!ontology.concepts.length) continue;
+        const concepts = ontology.concepts.map(
+          (c) => `- ${c.name} (${c.type}, id ${c.id})${c.aliases.length ? `, also ${c.aliases.join(', ')}` : ''}`,
+        );
+        const relations = ontology.relations.map((r) => `- ${relationLabel(ontology, r)} [${r.id}]`);
+        const head = zones.length > 1 ? `## ${zoneName(z)} (${zoneLabel(z)})\n\n` : '';
+        sections.push(`${head}Concepts:\n${concepts.join('\n')}${relations.length ? `\n\nRelationships:\n${relations.join('\n')}` : ''}`);
+      }
+      if (!sections.length) return text(zones.length === 1 ? `The ${zoneLabel(zones[0])} has no concepts yet.` : 'The ontology is empty.');
+      return text(sections.join('\n\n'));
     },
   );
 }
@@ -270,12 +323,41 @@ function registerProposalTools(server: McpServer, user: User) {
     .min(1)
     .describe('Exact quotes from documentation pages that support this');
   const rationale = z.string().describe('Why, in one or two sentences');
+  const zoneParam = z
+    .string()
+    .optional()
+    .describe("The zone whose ontology this changes (a top-level folder). Defaults to the evidence pages' zone.");
 
-  async function recommend(recommendation: Recommendation, why: string, quotes: { path: string; quote: string }[]) {
-    const problem = await verifyEvidence(quotes);
+  // An ontology proposal belongs to one zone: the one given, or else the zone
+  // of its evidence pages, which must all be in that zone.
+  function proposalZone(zone: string | undefined, quotes: { path: string }[]): string {
+    if (zone !== undefined) return parseZone(zone);
+    const zones = new Set(quotes.map((q) => zoneOf(q.path.trim())));
+    if (zones.size !== 1) throw new ZoneError('The evidence comes from more than one zone; quote pages from one zone, or pass "zone".');
+    return [...zones][0];
+  }
+
+  async function inZoneOntology<T>(
+    zone: string | undefined,
+    quotes: { path: string }[],
+    then: (zone: string, find: (ref: string) => Promise<Concept | undefined>) => Promise<T>,
+  ) {
+    let z: string;
+    try {
+      z = proposalZone(zone, quotes);
+    } catch (err) {
+      if (err instanceof ZoneError) return text(`Not proposed: ${err.message}`, true);
+      throw err;
+    }
+    return then(z, async (ref) => findConcept((await readOntology(z)).ontology, ref));
+  }
+
+  async function recommend(zone: string, recommendation: Recommendation, why: string, quotes: { path: string; quote: string }[]) {
+    const problem = await verifyEvidence(quotes, undefined, zone);
     if (problem) return text(`Not proposed: ${problem}`, true);
     const outcome = await saveRecommendation({
       runId: null,
+      zone,
       proposedBy: user.name ?? user.username,
       workflow: 'agent',
       recommendation,
@@ -307,14 +389,16 @@ function registerProposalTools(server: McpServer, user: User) {
         aliases: z.array(z.string()).default([]),
         rationale,
         evidence,
+        zone: zoneParam,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ name, type, definition, aliases, rationale: why, evidence: quotes }) => {
-      const existing = findConcept((await readOntology()).ontology, name);
-      if (existing) return text(`"${name}" already exists as concept "${existing.id}". Propose an alias instead.`, true);
-      return recommend({ action: 'create_concept', payload: { name, type, definition, aliases } }, why, quotes);
-    },
+    async ({ name, type, definition, aliases, rationale: why, evidence: quotes, zone }) =>
+      inZoneOntology(zone, quotes, async (z, find) => {
+        const existing = await find(name);
+        if (existing) return text(`"${name}" already exists in the ${zoneLabel(z)} as concept "${existing.id}". Propose an alias instead.`, true);
+        return recommend(z, { action: 'create_concept', payload: { name, type, definition, aliases } }, why, quotes);
+      }),
   );
 
   server.registerTool(
@@ -322,14 +406,15 @@ function registerProposalTools(server: McpServer, user: User) {
     {
       title: 'Propose an alias for a concept',
       description: 'Proposes another name (synonym, abbreviation) for an existing ontology concept.',
-      inputSchema: { concept: z.string().describe('Concept id or name'), alias: z.string(), rationale, evidence },
+      inputSchema: { concept: z.string().describe('Concept id or name'), alias: z.string(), rationale, evidence, zone: zoneParam },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ concept, alias, rationale: why, evidence: quotes }) => {
-      const c = findConcept((await readOntology()).ontology, concept);
-      if (!c) return text(`No concept "${concept}".`, true);
-      return recommend({ action: 'add_alias', payload: { conceptId: c.id, alias } }, why, quotes);
-    },
+    async ({ concept, alias, rationale: why, evidence: quotes, zone }) =>
+      inZoneOntology(zone, quotes, async (z, find) => {
+        const c = await find(concept);
+        if (!c) return text(`No concept "${concept}" in the ${zoneLabel(z)}.`, true);
+        return recommend(z, { action: 'add_alias', payload: { conceptId: c.id, alias } }, why, quotes);
+      }),
   );
 
   server.registerTool(
@@ -343,12 +428,13 @@ function registerProposalTools(server: McpServer, user: User) {
         to: z.string().describe('Concept id or name'),
         rationale,
         evidence,
+        zone: zoneParam,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ from, type, to, rationale: why, evidence: quotes }) => {
+    async ({ from, type, to, rationale: why, evidence: quotes, zone }) => {
       if (from.trim().toLowerCase() === to.trim().toLowerCase()) return text('A concept cannot relate to itself.', true);
-      return recommend({ action: 'create_relation', payload: { from, type, to } }, why, quotes);
+      return inZoneOntology(zone, quotes, (z) => recommend(z, { action: 'create_relation', payload: { from, type, to } }, why, quotes));
     },
   );
 

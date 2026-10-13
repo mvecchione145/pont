@@ -11,9 +11,10 @@ export type Route =
   | { view: 'flashcards' }
   | { view: 'match' }
   | { view: 'settings' }
-  | { view: 'ontology' }
+  | { view: 'ontology'; zone?: string }
   | { view: 'proposals'; path?: string }
   | { view: 'history'; path: string }
+  // id is a ref: "<zone>/<id>", or "<id>" in the default zone (see zones.ts).
   | { view: 'concept'; id: string }
   | { view: 'relation'; id: string }
   | { view: 'page'; path: string; section?: string; check?: boolean };
@@ -33,11 +34,11 @@ function parse(hash: string): Route {
     view === 'trivia' ||
     view === 'flashcards' ||
     view === 'match' ||
-    view === 'settings' ||
-    view === 'ontology'
+    view === 'settings'
   ) {
     return { view };
   }
+  if (view === 'ontology') return path ? { view, zone: path } : { view };
   if (view === 'history' && path) return { view, path };
   if ((view === 'concept' || view === 'relation') && path) return { view, id: path };
   if (view === 'proposals') return { view, path: new URLSearchParams(query).get('path') ?? undefined };
@@ -53,11 +54,12 @@ export function href(route: Route): string {
     case 'flashcards':
     case 'match':
     case 'settings':
-    case 'ontology':
       return `#/${route.view}`;
+    case 'ontology':
+      return route.zone ? `#/ontology/${encodeURIComponent(route.zone)}` : '#/ontology';
     case 'concept':
     case 'relation':
-      return `#/${route.view}/${encodeURIComponent(route.id)}`;
+      return `#/${route.view}/${route.id.split('/').map(encodeURIComponent).join('/')}`;
     case 'history':
       return `#/history/${route.path.split('/').map(encodeURIComponent).join('/')}`;
     case 'proposals':

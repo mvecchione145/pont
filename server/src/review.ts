@@ -6,6 +6,7 @@ import { getSettings } from './llm/settings.js';
 import { structured } from './llm/structured.js';
 import { priceFor } from './ontology/runs.js';
 import { readOntology } from './ontology/store.js';
+import { zoneOf } from './ontology/zones.js';
 import { isLinked } from './github/service.js';
 import { addLink, alreadyLinks, findMention, linkCandidates, type LinkCandidate, type LinkKind } from './review-links.js';
 import { chunkMarkdown } from './search/chunker.js';
@@ -339,7 +340,8 @@ const uniquePaths = (passages: RelatedPassage[]) => [...new Set(passages.map((p)
 // edited in the GitHub file, not fixed from pont.
 async function candidatesFor(path: string, content: string): Promise<LinkCandidate[]> {
   if (await isLinked(path)) return [];
-  return linkCandidates(content, (await readOntology()).ontology);
+  const zone = zoneOf(path);
+  return linkCandidates(content, (await readOntology(zone)).ontology, zone);
 }
 
 // What a review of this page would send and roughly cost, or null when no LLM

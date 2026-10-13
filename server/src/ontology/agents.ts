@@ -12,6 +12,7 @@ import type { Changes } from './changes.js';
 import { verifyEvidence } from './evidence.js';
 import { saveRecommendation, type Recommendation, type Workflow } from './recommendations.js';
 import { CONCEPT_TYPES, findConcept, readOntology, RELATION_TYPES, type Ontology, type Source } from './store.js';
+import { inZone, zoneName } from './zones.js';
 
 // The two ontology workflows, each a Strands agent run over batches of
 // changed pages:
@@ -23,7 +24,8 @@ import { CONCEPT_TYPES, findConcept, readOntology, RELATION_TYPES, type Ontology
 //
 // Agents read pages and the ontology through tools, and can only *recommend*
 // changes. Every recommendation must quote its evidence, and the quote is
-// checked against the page before it is saved for review.
+// checked against the page before it is saved for review. A run works on one
+// zone: its agents see only that zone's pages and ontology.
 
 const MAX_MODEL_CALLS_PER_BATCH = 24;
 const BATCH_CHARS = 24_000;
@@ -37,6 +39,7 @@ export interface Usage {
 
 export interface WorkflowContext {
   runId: string;
+  zone: string;
   settings: LlmSettings;
   changes: Changes;
   // Last analysed content of modified and deleted pages: evidence may quote
@@ -89,13 +92,15 @@ const RATIONALE = z.string().describe('One or two sentences explaining why');
 
 // --- Tools -----------------------------------------------------------------
 
-function readTools() {
+function readTools(zone: string) {
+  const belongs = inZone(zone);
   return [
     tool({
       name: 'read_page',
       description: 'Returns the current Markdown of a documentation page.',
       inputSchema: z.object({ path: z.string() }),
       callback: async ({ path }) => {
+        if (!belongs(path)) return `Error: "${path}" is outside this zone.`;
         try {
           return clip((await getEntry(path)).content, PAGE_CHARS);
         } catch (err) {
@@ -106,10 +111,10 @@ function readTools() {
     }),
     tool({
       name: 'search_pages',
-      description: 'Searches all documentation by meaning and exact terms. Use it to find where a concept is defined or used.',
+      description: "Searches this zone's documentation by meaning and exact terms. Use it to find where a concept is defined or used.",
       inputSchema: z.object({ query: z.string() }),
       callback: async ({ query }) => {
-        const results = await search(query, 6).catch(() => []);
+        const results = await search(query, 6, belongs).catch(() => []);
         if (!results.length) return 'No matches.';
         return results
           .map((r) => `- ${r.path}${r.headings ? ` › ${r.headings}` : ''}: ${clip(r.content.replace(/\s+/g, ' '), 300)}`)
@@ -121,7 +126,7 @@ function readTools() {
       description: 'Lists concepts in the ontology (id, name, type, aliases). Optionally filter by text.',
       inputSchema: z.object({ filter: z.string().optional() }),
       callback: async ({ filter }) => {
-        const { ontology } = await readOntology();
+        const { ontology } = await readOntology(zone);
         const f = filter?.toLowerCase();
         const list = conceptSummary(ontology).filter(
           (c) => !f || c.name.toLowerCase().includes(f) || c.aliases.some((a) => a.toLowerCase().includes(f)),
@@ -134,7 +139,7 @@ function readTools() {
       description: 'Returns a concept with its definition, sources, and relationships. Accepts an id, name, or alias.',
       inputSchema: z.object({ concept: z.string() }),
       callback: async ({ concept }) => {
-        const { ontology } = await readOntology();
+        const { ontology } = await readOntology(zone);
         const c = findConcept(ontology, concept);
         if (!c) return `No concept "${concept}".`;
         const relations = ontology.relations.filter((r) => r.from === c.id || r.to === c.id);
@@ -151,9 +156,17 @@ function recommendTools(ctx: WorkflowContext, workflow: Workflow, counter: { sav
     evidence: Source[],
     confidence: number,
   ): Promise<string> {
-    const problem = await verifyEvidence(evidence, ctx.previousContent);
+    const problem = await verifyEvidence(evidence, ctx.previousContent, ctx.zone);
     if (problem) return `Not recorded: ${problem}`;
-    const outcome = await saveRecommendation({ runId: ctx.runId, workflow, recommendation, rationale, evidence, confidence });
+    const outcome = await saveRecommendation({
+      runId: ctx.runId,
+      zone: ctx.zone,
+      workflow,
+      recommendation,
+      rationale,
+      evidence,
+      confidence,
+    });
     if (outcome === 'saved') counter.saved++;
     return {
       saved: 'Recorded for review.',
@@ -163,7 +176,7 @@ function recommendTools(ctx: WorkflowContext, workflow: Workflow, counter: { sav
   }
 
   async function requireConcept(id: string): Promise<string | null> {
-    const { ontology } = await readOntology();
+    const { ontology } = await readOntology(ctx.zone);
     return findConcept(ontology, id) ? null : `No concept "${id}". Use list_concepts to find the right id.`;
   }
 
@@ -203,7 +216,7 @@ function recommendTools(ctx: WorkflowContext, workflow: Workflow, counter: { sav
       description: 'Recommends deleting a relationship that the documentation no longer supports.',
       inputSchema: z.object({ relationId: z.string(), rationale: RATIONALE, evidence: EVIDENCE, confidence: CONFIDENCE }),
       callback: async ({ relationId, rationale, evidence, confidence }) => {
-        const { ontology } = await readOntology();
+        const { ontology } = await readOntology(ctx.zone);
         if (!ontology.relations.some((r) => r.id === relationId)) return `Not recorded: no relationship "${relationId}".`;
         return record({ action: 'delete_relation', payload: { relationId } }, rationale, evidence, confidence);
       },
@@ -225,7 +238,7 @@ function recommendTools(ctx: WorkflowContext, workflow: Workflow, counter: { sav
         confidence: CONFIDENCE,
       }),
       callback: async ({ name, type, definition, aliases, rationale, evidence, confidence }) => {
-        const { ontology } = await readOntology();
+        const { ontology } = await readOntology(ctx.zone);
         const existing = findConcept(ontology, name);
         if (existing) return `Not recorded: "${name}" already exists as concept "${existing.id}". Recommend an alias or update instead.`;
         return record({ action: 'create_concept', payload: { name, type, definition, aliases } }, rationale, evidence, confidence);
@@ -279,6 +292,11 @@ const CREATE = `${SHARED}
 
 Your job: some pages are new or have new content since the ontology was last calculated. Find the concepts these pages define or describe that matter for doing the work (metrics, processes, decisions, policies, systems, teams, and important terms), and how they relate. Before recommending a concept, check list_concepts so you don't duplicate one: if it exists under another name, recommend an alias instead. Recommend relationships only when the text states them. Do not recommend updates or deletions; another step handles those.`;
 
+const zoneIntro = (zone: string) =>
+  zone
+    ? `You are working on the "${zoneName(zone)}" zone: the pages under the "${zone}/" folder, which have an ontology of their own. Only those pages count as evidence.`
+    : 'You are working on the default zone: the pages at the top level (not in a folder), which have an ontology of their own. Only those pages count as evidence.';
+
 // --- Batching and running ---------------------------------------------------
 
 interface Item {
@@ -310,11 +328,11 @@ async function runBatches(ctx: WorkflowContext, workflow: Workflow, items: Item[
     if (await ctx.isCancelled()) throw new RunCancelledError();
     await ctx.onProgress({ workflow, batch: i + 1, batches: groups.length, recommendations: counter.saved });
 
-    const { ontology } = await readOntology();
+    const { ontology } = await readOntology(ctx.zone);
     const agent = new Agent({
       model: buildModel(ctx.settings),
       systemPrompt: workflow === 'maintain' ? MAINTAIN : CREATE,
-      tools: [...readTools(), ...recommendTools(ctx, workflow, counter)],
+      tools: [...readTools(ctx.zone), ...recommendTools(ctx, workflow, counter)],
       printer: false,
       name: `ontology-${workflow}`,
     });
@@ -328,7 +346,7 @@ async function runBatches(ctx: WorkflowContext, workflow: Workflow, items: Item[
       }
     });
 
-    const prompt = `${intro(ontology)}\n\n${group.map((g) => `### ${g.label}\n\n${g.text}`).join('\n\n')}`;
+    const prompt = `${zoneIntro(ctx.zone)}\n\n${intro(ontology)}\n\n${group.map((g) => `### ${g.label}\n\n${g.text}`).join('\n\n')}`;
     const result = await agent.invoke(prompt);
     const usage = result.metrics?.accumulatedUsage;
     ctx.usage.inputTokens += usage?.inputTokens ?? 0;
@@ -342,7 +360,7 @@ async function runBatches(ctx: WorkflowContext, workflow: Workflow, items: Item[
 export async function runMaintain(ctx: WorkflowContext): Promise<void> {
   const changedPaths = new Set([...ctx.changes.modified, ...ctx.changes.deleted].map((p) => p.path));
   if (changedPaths.size === 0) return;
-  const { ontology } = await readOntology();
+  const { ontology } = await readOntology(ctx.zone);
   const touchesChanged = (sources: Source[]) => sources.some((s) => changedPaths.has(s.path));
   const affectedConcepts = ontology.concepts.filter((c) => touchesChanged(c.sources));
   const affectedRelations = ontology.relations.filter((r) => touchesChanged(r.sources));

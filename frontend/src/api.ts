@@ -1,4 +1,5 @@
 import { apiFetch } from './auth';
+import { fromRef, type ZoneSummary } from './zones';
 
 export interface Author {
   id: string;
@@ -138,11 +139,13 @@ export interface Relation {
 }
 
 export interface ConceptDetail extends Concept {
+  zone: string;
   relations: (Relation & { label: string; fromName: string; toName: string })[];
   linkedFrom: string[];
 }
 
 export interface RelationDetail extends Relation {
+  zone: string;
   label: string;
   fromConcept: Concept | null;
   toConcept: Concept | null;
@@ -243,6 +246,10 @@ export interface GithubPublishResult {
 export interface OntologyHit {
   kind: 'concept' | 'relation';
   id: string;
+  zone: string;
+  zoneName: string;
+  // What a link points to (see zones.ts).
+  ref: string;
   name: string;
   type: string;
   description: string;
@@ -273,6 +280,7 @@ export interface ChangePreview {
 
 export interface OntologyRun {
   id: string;
+  zone: string;
   status: 'running' | 'succeeded' | 'failed' | 'cancelled';
   startedBy: string;
   provider: string;
@@ -288,6 +296,7 @@ export interface OntologyRun {
 
 export interface OntologyRecommendation {
   id: string;
+  zone: string;
   runId: string;
   workflow: 'maintain' | 'create' | 'agent';
   proposedBy: string | null;
@@ -438,6 +447,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
+// "?zone=<zone>", or nothing for the default zone.
+const inZone = (zone: string) => (zone ? `?${new URLSearchParams({ zone })}` : '');
+const itemUrl = (kind: 'concepts' | 'relations', ref: string) => {
+  const { zone, id } = fromRef(ref);
+  return `/api/ontology/${kind}/${encodeURIComponent(id)}${inZone(zone)}`;
+};
+
 const json = (method: string, body: unknown): RequestInit => ({
   method,
   headers: { 'Content-Type': 'application/json' },
@@ -518,14 +534,16 @@ export const api = {
   review: (id: string) => request<PageReview>(`/api/reviews/${id}`),
   decideReviewItem: (id: string, item: string, action: 'apply' | 'accept' | 'dismiss') =>
     request<PageReview>(`/api/reviews/${id}/items/${item}`, json('POST', { action })),
-  ontology: () => request<Ontology>('/api/ontology'),
-  ontologyChanges: () => request<ChangePreview>('/api/ontology/changes'),
-  ontologyRuns: () => request<OntologyRun[]>('/api/ontology/runs'),
+  zones: () => request<ZoneSummary[]>('/api/ontology/zones'),
+  ontology: (zone: string) => request<Ontology>(`/api/ontology${inZone(zone)}`),
+  ontologyChanges: (zone: string) => request<ChangePreview>(`/api/ontology/changes${inZone(zone)}`),
+  ontologyRuns: (zone: string) => request<OntologyRun[]>(`/api/ontology/runs${inZone(zone)}`),
   ontologyRun: (id: string) => request<OntologyRun>(`/api/ontology/runs/${id}`),
-  startOntologyRun: () => request<OntologyRun>('/api/ontology/runs', { method: 'POST' }),
+  startOntologyRun: (zone: string) => request<OntologyRun>(`/api/ontology/runs${inZone(zone)}`, { method: 'POST' }),
   cancelOntologyRun: (id: string) => request<OntologyRun>(`/api/ontology/runs/${id}/cancel`, { method: 'POST' }),
   pendingRecommendationCount: () => request<{ pending: number }>('/api/ontology/recommendations/count'),
-  ontologyRecommendations: () => request<OntologyRecommendation[]>('/api/ontology/recommendations'),
+  ontologyRecommendations: (zone: string) =>
+    request<OntologyRecommendation[]>(`/api/ontology/recommendations${inZone(zone)}`),
   approveRecommendation: (id: string) =>
     request<{ status: 'approved' | 'failed'; message: string }>(`/api/ontology/recommendations/${id}/approve`, {
       method: 'POST',
@@ -590,23 +608,22 @@ export const api = {
   deadLinks: (path: string) => request<DeadLink[]>(`/api/links/dead?${new URLSearchParams({ path })}`),
   fixLink: (path: string, href: string, to: string | null) =>
     request<{ versionId: string | null; fixed: number }>('/api/links/fix', json('POST', { path, href, to })),
-  searchOntology: (q: string) => request<OntologyHit[]>(`/api/ontology/search?${new URLSearchParams({ q })}`),
-  concept: (id: string) => request<ConceptDetail>(`/api/ontology/concepts/${encodeURIComponent(id)}`),
-  createConcept: (body: { name: string; type: string; definition?: string; aliases?: string[] }) =>
-    request<Concept>('/api/ontology/concepts', json('POST', body)),
-  updateConcept: (id: string, body: Record<string, unknown>) =>
-    request<Concept>(`/api/ontology/concepts/${encodeURIComponent(id)}`, json('PUT', body)),
-  deleteConcept: (id: string) =>
-    request<{ relationsRemoved: number; linkedFrom: string[] }>(`/api/ontology/concepts/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    }),
-  relation: (id: string) => request<RelationDetail>(`/api/ontology/relations/${encodeURIComponent(id)}`),
-  createRelation: (body: { from: string; type: string; to: string; name?: string; description?: string }) =>
-    request<Relation>('/api/ontology/relations', json('POST', body)),
-  updateRelation: (id: string, body: Record<string, unknown>) =>
-    request<Relation>(`/api/ontology/relations/${encodeURIComponent(id)}`, json('PUT', body)),
-  deleteRelation: (id: string) =>
-    request<{ linkedFrom: string[] }>(`/api/ontology/relations/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  // Searches every zone; the linking page's zone ranks first.
+  searchOntology: (q: string, zone: string) =>
+    request<OntologyHit[]>(`/api/ontology/search?${new URLSearchParams({ q, zone })}`),
+  // Concepts and relationships are addressed by ref ("<zone>/<id>" or "<id>").
+  concept: (ref: string) => request<ConceptDetail>(itemUrl('concepts', ref)),
+  createConcept: (zone: string, body: { name: string; type: string; definition?: string; aliases?: string[] }) =>
+    request<Concept>(`/api/ontology/concepts${inZone(zone)}`, json('POST', body)),
+  updateConcept: (ref: string, body: Record<string, unknown>) => request<Concept>(itemUrl('concepts', ref), json('PUT', body)),
+  deleteConcept: (ref: string) =>
+    request<{ relationsRemoved: number; linkedFrom: string[] }>(itemUrl('concepts', ref), { method: 'DELETE' }),
+  relation: (ref: string) => request<RelationDetail>(itemUrl('relations', ref)),
+  createRelation: (zone: string, body: { from: string; type: string; to: string; name?: string; description?: string }) =>
+    request<Relation>(`/api/ontology/relations${inZone(zone)}`, json('POST', body)),
+  updateRelation: (ref: string, body: Record<string, unknown>) =>
+    request<Relation>(itemUrl('relations', ref), json('PUT', body)),
+  deleteRelation: (ref: string) => request<{ linkedFrom: string[] }>(itemUrl('relations', ref), { method: 'DELETE' }),
   listTokens: () => request<TokenInfo[]>('/api/tokens'),
   createToken: (name: string) =>
     request<{ token: string; info: TokenInfo }>('/api/tokens', {
