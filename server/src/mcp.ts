@@ -21,10 +21,11 @@ which finds relevant passages by meaning and by exact terms; then read_entry to
 read a whole entry. list_entries shows everything that exists, optionally
 within a folder.
 
-Knowledge is split into zones: each top-level folder is a zone (pages at the
-top level are in the default zone), and each zone has its own ontology, so the
-same term can mean different things in different zones. Pages may link terms
-to the ontology, e.g. [WAU](#/concept/weekly-active-users) (default zone) or
+The ontology is split into zones. The General zone ("") is the
+organization-wide ontology, drawn from every page. Each top-level folder is
+also a zone with its own ontology, drawn from that folder's pages only, so the
+same term can mean different things in different folders. Pages may link terms
+to the ontology, e.g. [WAU](#/concept/weekly-active-users) (General) or
 [Revenue](#/concept/sales/revenue) (the "sales" zone), or [..](#/relation/<id>):
 use get_concept with the link target for a concept's definition, aliases,
 relationships, and the pages that link to it. list_concepts lists them.
@@ -156,13 +157,13 @@ function buildServer(user: User): McpServer {
   return server;
 }
 
-const zoneLabel = (zone: string) => (zone ? `zone "${zone}"` : 'default zone');
+const zoneLabel = (zone: string) => (zone ? `zone "${zone}"` : 'General zone');
 
 function registerOntologyTools(server: McpServer) {
   const zoneParam = z
     .string()
     .optional()
-    .describe('The zone (top-level folder, for example "sales"); "" for the default zone. Omit to look in every zone.');
+    .describe('The zone (top-level folder, for example "sales"); "" for General, the organization-wide ontology. Omit to look in every zone.');
 
   server.registerTool(
     'get_concept',
@@ -446,15 +447,17 @@ function registerProposalTools(server: McpServer, user: User) {
   const zoneParam = z
     .string()
     .optional()
-    .describe("The zone whose ontology this changes (a top-level folder). Defaults to the evidence pages' zone.");
+    .describe(
+      'The zone whose ontology this changes: a top-level folder, or "" for General (the organization-wide ontology, which may quote any page). ' +
+        "Defaults to the evidence pages' folder, or General when they are in different folders.",
+    );
 
-  // An ontology proposal belongs to one zone: the one given, or else the zone
-  // of its evidence pages, which must all be in that zone.
+  // An ontology proposal belongs to one zone: the one given; else the folder
+  // zone all its evidence pages are in; else General, which covers every page.
   function proposalZone(zone: string | undefined, quotes: { path: string }[]): string {
     if (zone !== undefined) return parseZone(zone);
     const zones = new Set(quotes.map((q) => zoneOf(q.path.trim())));
-    if (zones.size !== 1) throw new ZoneError('The evidence comes from more than one zone; quote pages from one zone, or pass "zone".');
-    return [...zones][0];
+    return zones.size === 1 ? [...zones][0] : '';
   }
 
   async function inZoneOntology<T>(

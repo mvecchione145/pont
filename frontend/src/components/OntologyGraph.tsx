@@ -305,7 +305,7 @@ export function OntologyGraph({ zone, ontology }: { zone: string; ontology: Onto
   const dimEdge = (e: Edge) => (focus !== null && !touches(e)) || (hover?.kind === 'edge' && hover.edge !== e);
 
   if (!graph.nodes.length) {
-    return <p className="muted">No concepts in this zone yet, so there is nothing to draw.</p>;
+    return <p className="muted">No concepts in this zone yet.</p>;
   }
 
   const relationName = (e: Edge) => e.relation.name || humanType(e.relation.type);

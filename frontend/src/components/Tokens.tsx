@@ -26,8 +26,7 @@ function NewToken({ token }: { token: string }) {
   return (
     <div className="callout">
       <p>
-        <strong>Copy this token now.</strong> pont only stores a hash of it, so it can't be shown
-        again.
+        <strong>Copy this token now.</strong> It won't be shown again.
       </p>
       <div className="copy-row">
         <code>{token}</code>
@@ -81,11 +80,7 @@ export function Tokens() {
   return (
     <section>
       <h1 className="page-title static">API tokens</h1>
-      <p className="muted">
-        Tokens let your agents, such as Claude Code, read pont through MCP as you. Anyone with a
-        token can read all knowledge in pont, so treat it like a password and revoke it when you no
-        longer need it.
-      </p>
+      <p className="muted">Treat tokens like passwords.</p>
 
       <form className="token-form" onSubmit={create}>
         <input

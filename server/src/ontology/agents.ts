@@ -295,7 +295,7 @@ Your job: some pages are new or have new content since the ontology was last cal
 const zoneIntro = (zone: string) =>
   zone
     ? `You are working on the "${zoneName(zone)}" zone: the pages under the "${zone}/" folder, which have an ontology of their own. Only those pages count as evidence.`
-    : 'You are working on the default zone: the pages at the top level (not in a folder), which have an ontology of their own. Only those pages count as evidence.';
+    : 'You are working on the General zone: the organization-wide ontology, drawn from every page (at the top level and in every folder). Any page counts as evidence. Each top-level folder also has an ontology of its own, which a separate calculation maintains.';
 
 // --- Batching and running ---------------------------------------------------
 

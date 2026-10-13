@@ -34,15 +34,11 @@ export function Home({ entries, onNewPage }: Props) {
   return (
     <div className="page">
       <h1 className="page-title static">Home</h1>
-      <p className="lead">
-        Capture what your organization knows (definitions, decisions, and processes) as pages.
-        Agents read them through MCP.
-      </p>
 
       <h2 className="section-heading">Recently edited</h2>
       {recent.length === 0 ? (
         <div className="empty-state">
-          <p>No pages yet. Start with something only your team knows.</p>
+          <p>No pages yet.</p>
           <button className="primary" onClick={onNewPage}>
             New page
           </button>

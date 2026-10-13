@@ -217,6 +217,16 @@ export async function migrate(): Promise<void> {
     DELETE FROM ontology_snapshots WHERE zone IS NULL;
     ALTER TABLE ontology_snapshots ALTER COLUMN zone SET NOT NULL;
     CREATE INDEX IF NOT EXISTS ontology_snapshots_zone ON ontology_snapshots (zone);
+
+    -- General covers every page, so a page in a folder has a snapshot for its
+    -- folder's zone and one for General: the key is (zone, path).
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ontology_snapshots_zone_path_key') THEN
+        ALTER TABLE ontology_snapshots DROP CONSTRAINT IF EXISTS ontology_snapshots_pkey;
+        ALTER TABLE ontology_snapshots ADD CONSTRAINT ontology_snapshots_zone_path_key PRIMARY KEY (zone, path);
+      END IF;
+    END $$;
     CREATE INDEX IF NOT EXISTS ontology_recommendations_zone ON ontology_recommendations (zone, status);
 
     CREATE TABLE IF NOT EXISTS page_moves (
