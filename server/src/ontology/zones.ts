@@ -1,7 +1,5 @@
-import { ListObjectsV2Command, type ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
-import { s3 } from '../clients.js';
-import { config } from '../config.js';
 import { listEntries } from '../entries.js';
+import { zonesWithConcepts } from './store.js';
 
 // Zones: a logical separation of the documentation. Every top-level folder is
 // a zone, and pages at the root belong to the default zone (""). Each zone
@@ -55,29 +53,8 @@ export async function listZones(): Promise<ZoneSummary[]> {
     const z = zoneOf(e.path);
     pages.set(z, (pages.get(z) ?? 0) + 1);
   }
-  for (const z of await zonesWithOntology()) if (!pages.has(z)) pages.set(z, 0);
+  for (const z of await zonesWithConcepts()) if (!pages.has(z)) pages.set(z, 0);
   return [...pages.entries()]
     .map(([zone, n]) => ({ zone, name: zoneName(zone), pages: n }))
     .sort((a, b) => (a.zone === DEFAULT_ZONE ? -1 : b.zone === DEFAULT_ZONE ? 1 : a.zone.localeCompare(b.zone)));
 }
-
-export const ZONE_PREFIX = 'ontology/zones/';
-const ZONE_SUFFIX = '.yaml';
-
-async function zonesWithOntology(): Promise<string[]> {
-  const zones: string[] = [];
-  let token: string | undefined;
-  do {
-    const page: ListObjectsV2CommandOutput = await s3.send(
-      new ListObjectsV2Command({ Bucket: config.minio.bucket, Prefix: ZONE_PREFIX, ContinuationToken: token }),
-    );
-    for (const obj of page.Contents ?? []) {
-      if (obj.Key?.endsWith(ZONE_SUFFIX)) zones.push(obj.Key.slice(ZONE_PREFIX.length, -ZONE_SUFFIX.length));
-    }
-    token = page.NextContinuationToken;
-  } while (token);
-  return zones;
-}
-
-// The default zone keeps the ontology file from before zones existed.
-export const ontologyKey = (zone: string) => (zone ? `${ZONE_PREFIX}${zone}${ZONE_SUFFIX}` : 'ontology/ontology.yaml');

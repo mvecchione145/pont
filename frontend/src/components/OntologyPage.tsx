@@ -551,6 +551,12 @@ export function OntologyPage({ zone }: { zone: string }) {
         </div>
         <div className="calculate">
           <div className="calculate-buttons">
+            <button
+              onClick={() => api.exportOntology(zone).catch((err: Error) => setError(err.message))}
+              title="Download this zone's concepts and relationships as a YAML file"
+            >
+              Export YAML
+            </button>
             <button onClick={() => setCreatingConcept(true)} disabled={creatingConcept}>
               ＋ New concept
             </button>

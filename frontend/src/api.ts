@@ -536,6 +536,17 @@ export const api = {
     request<PageReview>(`/api/reviews/${id}/items/${item}`, json('POST', { action })),
   zones: () => request<ZoneSummary[]>('/api/ontology/zones'),
   ontology: (zone: string) => request<Ontology>(`/api/ontology${inZone(zone)}`),
+  // The zone's ontology as a YAML file, saved by the browser.
+  exportOntology: async (zone: string) => {
+    const res = await apiFetch(`/api/ontology/export${inZone(zone)}`);
+    if (!res.ok) throw new ApiError(res.status, `Export failed (${res.status})`);
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ontology-${zone || 'general'}.yaml`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
   ontologyChanges: (zone: string) => request<ChangePreview>(`/api/ontology/changes${inZone(zone)}`),
   ontologyRuns: (zone: string) => request<OntologyRun[]>(`/api/ontology/runs${inZone(zone)}`),
   ontologyRun: (id: string) => request<OntologyRun>(`/api/ontology/runs/${id}`),

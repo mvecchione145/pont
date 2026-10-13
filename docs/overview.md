@@ -42,10 +42,10 @@ What that adds up to:
 
 1. **Humans stay in control of truth.** Nothing an LLM or agent produces (page edits, new pages, ontology changes, review suggestions) takes effect without a person approving it. Every applied change records who wrote it, who proposed it, and where it came from.
 2. **One source of truth for both sides.** A person searching pont and an agent calling the `search` tool get the same results from the same pages. If an answer is wrong, the fix is one edit, and both sides see it.
-3. **Plain files, no lock-in.** Knowledge is stored as plain Markdown files in S3-compatible storage (MinIO), with every version kept. Links to the ontology are ordinary Markdown links. You can read, back up, or move the files with any tool.
+3. **Plain files, no lock-in.** Knowledge is stored as plain Markdown files in S3-compatible storage (MinIO), with every version kept. Links to the ontology are ordinary Markdown links. You can read, back up, or move the files with any tool. The ontology lives in a graph database (Neo4j), so it can be traversed, and any zone exports to a plain YAML file.
 4. **Low maintenance by design.** Keeping docs current is where knowledge bases die. pont turns upkeep into review: agents propose, the page review points out unclear and conflicting text, and trivia makes stale content visible. People mostly click **Approve**.
 5. **Cost you can see.** Every feature that calls a paid LLM (ontology calculation, page review) shows an estimate first and runs only when a person starts it. Search runs on a local embedding model and costs nothing per query.
-6. **Small and self-hosted.** Six containers, no external services required beyond an optional LLM API. It works offline except for the LLM features.
+6. **Small and self-hosted.** Seven containers, no external services required beyond an optional LLM API. It works offline except for the LLM features.
 
 ## Who it's for
 

@@ -2,7 +2,8 @@ import { Router, type ErrorRequestHandler } from 'express';
 import { ApplyError, approve, decideMany, reject } from '../ontology/apply.js';
 import { listRecommendations, pendingByZone, pendingRecommendationCount } from '../ontology/recommendations.js';
 import { cancelRun, getRun, listRuns, previewChanges, RunError, startRun } from '../ontology/runs.js';
-import { OntologyConflictError, readOntology } from '../ontology/store.js';
+import { readOntology } from '../ontology/store.js';
+import { exportYaml } from '../ontology/yaml.js';
 import {
   conceptDetail,
   createConcept,
@@ -45,6 +46,16 @@ ontologyRouter.get('/zones', async (_req, res) => {
 
 ontologyRouter.get('/', async (req, res) => {
   res.json((await readOntology(zoneOf(req))).ontology);
+});
+
+// The zone's ontology as a YAML file, so it is never locked into the graph
+// database.
+ontologyRouter.get('/export', async (req, res) => {
+  const zone = zoneOf(req);
+  res
+    .type('application/yaml; charset=utf-8')
+    .attachment(`ontology-${zone || 'general'}.yaml`)
+    .send(await exportYaml(zone));
 });
 
 // Autocomplete for linking text to the ontology: every zone, the linking
@@ -154,10 +165,6 @@ export const ontologyErrors: ErrorRequestHandler = (err, _req, res, next) => {
   }
   if (err instanceof RunError || err instanceof ApplyError || err instanceof EditError) {
     res.status(err.status).json({ error: err.message });
-    return;
-  }
-  if (err instanceof OntologyConflictError) {
-    res.status(409).json({ error: err.message });
     return;
   }
   next(err);

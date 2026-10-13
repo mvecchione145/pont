@@ -2338,6 +2338,10 @@ select {
   gap: 0.5rem;
 }
 
+.calculate-buttons button {
+  white-space: nowrap;
+}
+
 .ontology > .new-concept-form {
   margin: 0 0 1rem;
 }

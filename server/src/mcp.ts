@@ -11,6 +11,7 @@ import { verifyEvidence } from './ontology/evidence.js';
 import { saveRecommendation, type Recommendation } from './ontology/recommendations.js';
 import { CONCEPT_TYPES, findConcept, readOntology, RELATION_TYPES, type Concept } from './ontology/store.js';
 import { conceptDetail, relationDetail, relationLabel } from './ontology/edit.js';
+import { MAX_DEPTH, neighbourhood, shortestPath } from './ontology/traverse.js';
 import { fromRef, inZone, listZones, parseZone, toRef, ZoneError, zoneName, zoneOf } from './ontology/zones.js';
 
 const INSTRUCTIONS = `pont holds this organization's knowledge, written by the people who know it:
@@ -27,6 +28,8 @@ to the ontology, e.g. [WAU](#/concept/weekly-active-users) (default zone) or
 [Revenue](#/concept/sales/revenue) (the "sales" zone), or [..](#/relation/<id>):
 use get_concept with the link target for a concept's definition, aliases,
 relationships, and the pages that link to it. list_concepts lists them.
+explore_concept walks the graph around a concept (up to 3 hops) and
+find_path shows how two concepts are connected.
 
 If you find something missing, outdated, or contradictory, you can propose a
 fix: propose_edit or propose_new_page for pages, and propose_concept,
@@ -258,6 +261,123 @@ function registerOntologyTools(server: McpServer) {
       }
       if (!sections.length) return text(zones.length === 1 ? `The ${zoneLabel(zones[0])} has no concepts yet.` : 'The ontology is empty.');
       return text(sections.join('\n\n'));
+    },
+  );
+
+  // A concept named the way get_concept accepts it: a link target
+  // ("sales/revenue"), or an id, name, or alias in the given zone or any zone.
+  async function resolve(concept: string, zone: string | undefined): Promise<{ zone: string; id: string; name: string }[]> {
+    const wanted = concept.trim();
+    const lookups: [string, string][] =
+      zone !== undefined
+        ? [[parseZone(zone), wanted]]
+        : wanted.includes('/') && (await readOntology(fromRef(wanted).zone)).ontology.concepts.some((c) => c.id === fromRef(wanted).id)
+          ? [[fromRef(wanted).zone, fromRef(wanted).id]]
+          : (await listZones()).map((z): [string, string] => [z.zone, wanted]);
+    const found: { zone: string; id: string; name: string }[] = [];
+    for (const [z, ref] of lookups) {
+      const c = findConcept((await readOntology(z)).ontology, ref);
+      if (c) found.push({ zone: z, id: c.id, name: c.name });
+    }
+    return found;
+  }
+
+  const ambiguous = (concept: string, matches: { zone: string }[]) =>
+    text(
+      `"${concept}" is a concept in several zones: ${matches.map((m) => zoneLabel(m.zone)).join(', ')}. Pass "zone" to pick one.`,
+      true,
+    );
+
+  server.registerTool(
+    'explore_concept',
+    {
+      title: 'Explore the ontology graph around a concept',
+      description:
+        'Walks the ontology graph from a concept: the concepts within 1 to 3 relationship hops (with how far each is), ' +
+        'the relationships between them, the pages that link to the concept, and the pages it was drawn from. ' +
+        'Use it to understand how a term fits with the rest of the organization\'s vocabulary.',
+      inputSchema: {
+        concept: z.string().describe('Concept id, name, or alias, or a link target such as "sales/revenue"'),
+        zone: zoneParam,
+        depth: z.number().int().min(1).max(MAX_DEPTH).optional().describe('How many relationship hops to follow (default 2)'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ concept, zone, depth }) => {
+      let matches;
+      try {
+        matches = await resolve(concept, zone);
+      } catch (err) {
+        if (err instanceof ZoneError) return text(err.message, true);
+        throw err;
+      }
+      if (!matches.length) return text(`No concept "${concept}". Try list_concepts.`, true);
+      if (matches.length > 1) return ambiguous(concept, matches);
+      const m = matches[0];
+      const n = await neighbourhood(m.zone, m.id, depth ?? 2);
+      if (!n) return text(`No concept "${concept}".`, true);
+      const names = new Map([[n.concept.id, n.concept.name], ...n.neighbours.map((x): [string, string] => [x.id, x.name])]);
+      const byHops = new Map<number, string[]>();
+      for (const x of n.neighbours) byHops.set(x.hops, [...(byHops.get(x.hops) ?? []), `${x.name} (${x.type}, link target ${toRef(m.zone, x.id)})`]);
+      return text(
+        [
+          `${n.concept.name} (${n.concept.type}, ${zoneLabel(m.zone)}, link target ${toRef(m.zone, n.concept.id)})`,
+          n.concept.definition ? `Definition: ${n.concept.definition}` : '',
+          n.neighbours.length
+            ? [...byHops.entries()].map(([h, list]) => `${h} ${h === 1 ? 'hop' : 'hops'} away:\n${list.map((l) => `- ${l}`).join('\n')}`).join('\n')
+            : 'No related concepts.',
+          n.relations.length
+            ? `Relationships:\n${n.relations
+                .map((r) => `- ${names.get(r.from) ?? r.from} ${r.type.replace(/_/g, ' ')} ${names.get(r.to) ?? r.to}${r.name ? ` ("${r.name}")` : ''} [${r.id}]`)
+                .join('\n')}`
+            : '',
+          n.linkedFrom.length ? `Linked from pages: ${n.linkedFrom.join(', ')}` : '',
+          n.sources.length ? `Drawn from pages: ${n.sources.join(', ')}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      );
+    },
+  );
+
+  server.registerTool(
+    'find_path',
+    {
+      title: 'Find how two concepts are connected',
+      description:
+        'Finds the shortest chain of ontology relationships between two concepts in the same zone (following ' +
+        'relationships in either direction), for questions like "how does X relate to Y?".',
+      inputSchema: {
+        from: z.string().describe('Concept id, name, or alias, or a link target'),
+        to: z.string().describe('Concept id, name, or alias, or a link target'),
+        zone: zoneParam,
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ from, to, zone }) => {
+      let a, b;
+      try {
+        [a, b] = await Promise.all([resolve(from, zone), resolve(to, zone)]);
+      } catch (err) {
+        if (err instanceof ZoneError) return text(err.message, true);
+        throw err;
+      }
+      if (!a.length) return text(`No concept "${from}".`, true);
+      if (!b.length) return text(`No concept "${to}".`, true);
+      // Relationships stay inside a zone: pick the zone both are in.
+      const pair = a.flatMap((x) => b.filter((y) => y.zone === x.zone).map((y) => [x, y] as const));
+      if (!pair.length) {
+        return text(`"${from}" and "${to}" are in different zones, and relationships don't cross zones.`, true);
+      }
+      if (pair.length > 1) return ambiguous(`${from}" and "${to}`, pair.map(([x]) => x));
+      const [x, y] = pair[0];
+      if (x.id === y.id) return text('Those are the same concept.', true);
+      const steps = await shortestPath(x.zone, x.id, y.id);
+      if (!steps) return text(`${x.name} and ${y.name} are not connected within 6 relationships in the ${zoneLabel(x.zone)}.`);
+      return text(
+        `${x.name} → ${y.name} in ${steps.length} ${steps.length === 1 ? 'step' : 'steps'} (${zoneLabel(x.zone)}):\n` +
+          steps.map((st) => `- ${st.from} ${st.type.replace(/_/g, ' ')} ${st.to}${st.name ? ` ("${st.name}")` : ''}`).join('\n'),
+      );
     },
   );
 }
