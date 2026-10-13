@@ -2,6 +2,7 @@
   "name": "@pont/server",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "pont backend: REST API for the frontend and MCP endpoint for agents",
   "type": "module",
   "main": "dist/index.js",
