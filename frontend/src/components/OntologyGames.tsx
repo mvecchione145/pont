@@ -183,12 +183,11 @@ export function Flashcards() {
     <section className="game">
       <GameTabs current="flashcards" />
       <h1 className="page-title static">Flashcards</h1>
-      <p className="lead">Learn the concepts your documentation defines. Flip a card, then say whether you knew it.</p>
       {error && <p className="down">{error}</p>}
       {!ontology ? (
         !error && <p className="muted">Loading…</p>
       ) : (ontology.concepts.filter((c) => c.definition.trim()).length === 0 ? (
-        <NotEnough what="Flashcards need concepts with definitions. Calculate the ontology or add concepts first." />
+        <NotEnough what="Flashcards need concepts with definitions." />
       ) : (
         <>
           <div className="game-controls">
@@ -388,12 +387,11 @@ export function MatchGame() {
     <section className="game">
       <GameTabs current="match" />
       <h1 className="page-title static">Match</h1>
-      <p className="lead">Match each relationship to the concept it points to. Pick one on each side.</p>
       {error && <p className="down">{error}</p>}
       {!ontology ? (
         !error && <p className="muted">Loading…</p>
       ) : usable < 2 || pairs.length < 2 ? (
-        <NotEnough what="Match needs at least two relationships in the ontology. Calculate the ontology or add relationships first." />
+        <NotEnough what="Match needs at least two relationships." />
       ) : (
         <>
           <div className="game-controls">

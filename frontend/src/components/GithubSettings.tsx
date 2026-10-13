@@ -65,10 +65,6 @@ export function GithubSettings() {
   return (
     <section className="github-settings">
       <h2 className="section-heading">GitHub</h2>
-      <p className="muted">
-        Link Markdown files in your repositories (like a README) to pont pages. Linked pages don't autosave: you edit,
-        then <strong>Publish</strong>, which opens a pull request as you.
-      </p>
       {result === 'connected' && status.connected && <p className="up">GitHub is connected.</p>}
       {result === 'failed' && <p className="down">Connecting GitHub didn't work. Try again.</p>}
       {result === 'cancelled' && <p className="muted">Connecting GitHub was cancelled.</p>}
@@ -82,10 +78,7 @@ export function GithubSettings() {
         </p>
       ) : (
         <form className="settings-form" onSubmit={saveApp}>
-          <p className="muted">
-            Register an OAuth App on GitHub (<em>Settings → Developer settings → OAuth Apps → New OAuth App</em>) with
-            this authorization callback URL, then enter its client ID and a client secret.
-          </p>
+          <p className="muted">Register a GitHub OAuth App with this callback URL.</p>
           <label>
             Callback URL
             <input value={status.callbackUrl} readOnly onFocus={(e) => e.currentTarget.select()} />

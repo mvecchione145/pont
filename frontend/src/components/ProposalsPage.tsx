@@ -85,9 +85,6 @@ function Review({ id, onDone }: { id: string; onDone: (message: string) => void 
 
       {mode === 'edit' ? (
         <div className="proposal-edit">
-          <p className="muted hint">
-            Edit the page as it should be saved. {detail.problem ? 'It starts from the current page.' : 'It starts from the proposed version.'}
-          </p>
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} />
           <div className="actions">
             <button
@@ -171,10 +168,6 @@ export function ProposalsPage({ pathFilter, onChanged }: { pathFilter?: string; 
   return (
     <div className="proposals">
       <h1 className="page-title static">Agent Proposals</h1>
-      <p className="lead">
-        Changes suggested by agents through MCP. Nothing changes until you approve it. Ontology suggestions from agents are
-        on the <a href={href({ view: 'ontology' })}>Ontology</a> page.
-      </p>
 
       <div className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'pending'} onClick={() => setTab('pending')}>

@@ -10,7 +10,7 @@ function LinkedFrom({ paths }: { paths: string[] }) {
     <section>
       <h2 className="section-heading">Linked from ({paths.length})</h2>
       {paths.length === 0 ? (
-        <p className="muted">No pages link here yet. In a page, type [[ or press ⌘⇧K to link text to the ontology.</p>
+        <p className="muted">No pages link here yet.</p>
       ) : (
         <ul className="plain-list">
           {paths.map((p) => (

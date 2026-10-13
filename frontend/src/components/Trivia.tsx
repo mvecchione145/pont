@@ -155,15 +155,11 @@ export function Trivia({ user }: Props) {
       <section className="trivia">
         <GameTabs current="trivia" />
         <h1 className="page-title static">Trivia</h1>
-        <p className="lead">
-          How well do you know your docs? Questions are written on the fly from a random page.
-          {scores && (
-            <>
-              {' '}
-              Your score: <strong>{scores.week}</strong> this week, <strong>{scores.allTime}</strong> all time.
-            </>
-          )}
-        </p>
+        {scores && (
+          <p className="lead">
+            Your score: <strong>{scores.week}</strong> this week, <strong>{scores.allTime}</strong> all time.
+          </p>
+        )}
 
         {configured && (
           <div className="ai-notice" role="note">
@@ -203,7 +199,7 @@ export function Trivia({ user }: Props) {
 
         {configured && !question && state !== 'loading' && (
           <div className="empty-state">
-            <p>Ready? Each question comes from a real section of your documentation.</p>
+            <p>Ready?</p>
             <button className="primary" onClick={next} title="Writes a question with the LLM (incurs LLM costs)">
               ✦ Start
             </button>
@@ -263,9 +259,6 @@ export function Trivia({ user }: Props) {
                     ✦ Next question
                   </button>
                 </div>
-                <p className="muted hint">
-                  Was the question wrong or confusing? The docs may be out of date: fact check them.
-                </p>
               </div>
             )}
           </div>

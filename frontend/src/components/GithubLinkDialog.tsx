@@ -56,10 +56,6 @@ export function GithubLinkDialog({ onClose, onLinked }: { onClose: () => void; o
           </div>
         ) : (
           <form className="settings-form github-link-form" onSubmit={submit}>
-            <p className="muted">
-              The file becomes a pont page that search and agents can read. Edits to it are published back to GitHub as a
-              pull request.
-            </p>
             {manual ? (
               <>
                 <label>

@@ -401,7 +401,6 @@ export function ReviewPanel({
                   </ul>
                 </details>
               )}
-              <p className="muted hint">Nothing on the page changes until you apply a suggestion.</p>
             </>
           )}
           <div className="actions">
@@ -424,19 +423,12 @@ export function ReviewPanel({
             <strong>Reviewing…</strong>
             <p className="muted">
               Reading the page
-              {review.compared.length > 0 && ` and comparing it with ${review.compared.length} related pages`}. This
-              usually takes under a minute.
+              {review.compared.length > 0 && ` and comparing it with ${review.compared.length} related pages`}…
             </p>
           </div>
         </div>
       ) : (
         <>
-          {!review && (
-            <p className="muted">
-              Get suggestions that make this page clearer, find places where it contradicts other pages, and
-              link terms that are in the ontology. Dead links are checked for free as soon as the panel opens.
-            </p>
-          )}
           <button className={review ? undefined : 'primary'} onClick={ask}>
             {review ? 'Review again' : 'Review this page'}
           </button>

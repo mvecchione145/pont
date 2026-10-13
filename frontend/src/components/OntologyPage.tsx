@@ -86,7 +86,6 @@ function ConfirmDialog({
               </div>
             ))}
         </details>
-        <p className="muted hint">Nothing changes until you approve the recommendations.</p>
         <div className="actions end">
           <button onClick={onClose} disabled={busy} autoFocus>
             Cancel
@@ -272,10 +271,7 @@ function ConceptList({ zone, ontology }: { zone: string; ontology: Ontology }) {
   return (
     <>
       {ontology.concepts.length === 0 && (
-        <p className="muted">
-          No concepts yet. Add one with ＋ New concept, or Calculate to get recommendations and approve the ones you agree
-          with.
-        </p>
+        <p className="muted">No concepts yet.</p>
       )}
       <input className="concept-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter concepts" />
       {types.map((type) => (
@@ -380,7 +376,7 @@ function saveDisplay(d: 'list' | 'graph') {
   }
 }
 
-// One top-level folder per zone, plus the default zone for pages at the root.
+// General (every page), plus one zone per top-level folder.
 function ZoneTabs({ zones, current }: { zones: ZoneSummary[]; current: string }) {
   if (zones.length < 2) return null;
   return (
@@ -537,17 +533,7 @@ export function OntologyPage({ zone }: { zone: string }) {
       <div className="ontology-head">
         <div>
           <h1 className="page-title static">Ontology</h1>
-          <p className="lead">
-            The concepts your documentation defines and how they relate. Agents suggest changes; you decide.
-          </p>
           <ZoneTabs zones={zones} current={zone} />
-          {zones.length > 1 && (
-            <p className="muted hint">
-              {zone
-                ? `The ${zoneName(zone)} zone: pages in the “${zone}” folder, with an ontology of their own.`
-                : 'The General zone: pages that are not in a folder. Each top-level folder is a zone with its own ontology.'}
-            </p>
-          )}
         </div>
         <div className="calculate">
           <div className="calculate-buttons">
