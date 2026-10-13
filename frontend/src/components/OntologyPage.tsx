@@ -9,6 +9,7 @@ import {
   type OntologyRun,
 } from '../api';
 import { href, navigate } from '../route';
+import { OntologyGraph } from './OntologyGraph';
 import { toRef, zoneName, type ZoneSummary } from '../zones';
 
 const POLL_MS = 2000;
@@ -362,6 +363,23 @@ function NewConceptForm({ zone, onClose }: { zone: string; onClose: () => void }
 
 // --- Page -------------------------------------------------------------------
 
+// List or graph, remembered per browser (a convenience; storage may be off).
+const DISPLAY_KEY = 'pont:ontology-display';
+function savedDisplay(): 'list' | 'graph' {
+  try {
+    return localStorage.getItem(DISPLAY_KEY) === 'graph' ? 'graph' : 'list';
+  } catch {
+    return 'list';
+  }
+}
+function saveDisplay(d: 'list' | 'graph') {
+  try {
+    localStorage.setItem(DISPLAY_KEY, d);
+  } catch {
+    // not remembered
+  }
+}
+
 // One top-level folder per zone, plus the default zone for pages at the root.
 function ZoneTabs({ zones, current }: { zones: ZoneSummary[]; current: string }) {
   if (zones.length < 2) return null;
@@ -399,6 +417,7 @@ export function OntologyPage({ zone }: { zone: string }) {
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [creatingConcept, setCreatingConcept] = useState(false);
+  const [display, setDisplay] = useState<'list' | 'graph'>(savedDisplay);
 
   const active = runs.find((r) => r.status === 'running');
 
@@ -627,8 +646,23 @@ export function OntologyPage({ zone }: { zone: string }) {
       <section>
         <h2 className="section-heading">
           Concepts ({ontology?.concepts.length ?? 0}) · Relationships ({ontology?.relations.length ?? 0})
+          <span className="view-toggle" role="group" aria-label="Show concepts as">
+            {(['list', 'graph'] as const).map((d) => (
+              <button
+                key={d}
+                aria-pressed={display === d}
+                onClick={() => {
+                  setDisplay(d);
+                  saveDisplay(d);
+                }}
+              >
+                {d === 'list' ? 'List' : 'Graph'}
+              </button>
+            ))}
+          </span>
         </h2>
-        {ontology && <ConceptList zone={zone} ontology={ontology} />}
+        {ontology &&
+          (display === 'graph' ? <OntologyGraph zone={zone} ontology={ontology} /> : <ConceptList zone={zone} ontology={ontology} />)}
       </section>
 
       {runs.length > 0 && (
