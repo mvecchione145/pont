@@ -4,10 +4,10 @@ import type { User } from '../auth.js';
 import { estimateRun, RunCancelledError, runCreate, runMaintain, type Usage } from './agents.js';
 import { changeCount, detectChanges, saveSnapshots, type Changes } from './changes.js';
 
-// Calculation runs: started by a person (after confirming the cost), run in
-// the background, one at a time. A successful run snapshots every page it
-// looked at; a failed or cancelled run doesn't, so the next calculation
-// covers the same changes again.
+// Calculation runs: started by a person (after confirming the cost) for one
+// zone, run in the background, one at a time per zone. A successful run
+// snapshots every page it looked at; a failed or cancelled run doesn't, so the
+// next calculation covers the same changes again.
 
 export class RunError extends Error {
   constructor(
@@ -57,8 +57,8 @@ export interface ChangePreview {
   } | null;
 }
 
-export async function previewChanges(): Promise<ChangePreview> {
-  const changes = await detectChanges();
+export async function previewChanges(zone: string): Promise<ChangePreview> {
+  const changes = await detectChanges(zone);
   const settings = await getSettings().catch(() => null);
   const size = estimateRun(changes);
   const cost = settings ? priceFor(settings.model, size.inputTokens, size.outputTokens) : null;
@@ -80,6 +80,7 @@ export async function previewChanges(): Promise<ChangePreview> {
 
 export interface Run {
   id: string;
+  zone: string;
   status: 'running' | 'succeeded' | 'failed' | 'cancelled';
   startedBy: string;
   provider: string;
@@ -95,6 +96,7 @@ export interface Run {
 
 interface RunRow {
   id: string;
+  zone: string;
   status: Run['status'];
   started_by_name: string;
   provider: string;
@@ -113,6 +115,7 @@ const RUN_SELECT = `SELECT r.*, (SELECT count(*) FROM ontology_recommendations x
 
 const toRun = (r: RunRow): Run => ({
   id: r.id,
+  zone: r.zone,
   status: r.status,
   startedBy: r.started_by_name,
   provider: r.provider,
@@ -126,8 +129,8 @@ const toRun = (r: RunRow): Run => ({
   recommendations: Number(r.recommendations),
 });
 
-export async function listRuns(limit = 10): Promise<Run[]> {
-  const { rows } = await db.query<RunRow>(`${RUN_SELECT} ORDER BY r.started_at DESC LIMIT $1`, [limit]);
+export async function listRuns(zone: string, limit = 10): Promise<Run[]> {
+  const { rows } = await db.query<RunRow>(`${RUN_SELECT} WHERE r.zone = $1 ORDER BY r.started_at DESC LIMIT $2`, [zone, limit]);
   return rows.map(toRun);
 }
 
@@ -145,25 +148,25 @@ export async function failInterruptedRuns(): Promise<void> {
   );
 }
 
-export async function startRun(user: User): Promise<Run> {
+export async function startRun(user: User, zone: string): Promise<Run> {
   const settings = await getSettings();
   if (!settings) throw new RunError('Set up an LLM provider in Settings first.');
 
-  const changes = await detectChanges();
-  if (changeCount(changes) === 0) throw new RunError('Nothing changed since the last calculation.', 409);
+  const changes = await detectChanges(zone);
+  if (changeCount(changes) === 0) throw new RunError('Nothing changed in this zone since the last calculation.', 409);
 
   const client = await db.connect();
   let runId: string;
   try {
     await client.query('BEGIN');
-    // One run at a time, across concurrent requests.
+    // One run at a time per zone, across concurrent requests.
     await client.query('SELECT pg_advisory_xact_lock(7140001)');
-    const { rows: active } = await client.query("SELECT 1 FROM ontology_runs WHERE status = 'running'");
-    if (active.length) throw new RunError('A calculation is already running.', 409);
+    const { rows: active } = await client.query("SELECT 1 FROM ontology_runs WHERE status = 'running' AND zone = $1", [zone]);
+    if (active.length) throw new RunError('A calculation is already running in this zone.', 409);
     const { rows } = await client.query<{ id: string }>(
-      `INSERT INTO ontology_runs (status, started_by, started_by_name, provider, model, changes)
-       VALUES ('running', $1, $2, $3, $4, $5) RETURNING id`,
-      [user.id, user.name ?? user.username, settings.provider, settings.model, JSON.stringify(summary(changes))],
+      `INSERT INTO ontology_runs (status, started_by, started_by_name, provider, model, changes, zone)
+       VALUES ('running', $1, $2, $3, $4, $5, $6) RETURNING id`,
+      [user.id, user.name ?? user.username, settings.provider, settings.model, JSON.stringify(summary(changes)), zone],
     );
     runId = rows[0].id;
     await client.query('COMMIT');
@@ -174,11 +177,11 @@ export async function startRun(user: User): Promise<Run> {
     client.release();
   }
 
-  void execute(runId, changes).catch((err) => console.error('ontology run crashed:', err));
+  void execute(runId, zone, changes).catch((err) => console.error('ontology run crashed:', err));
   return getRun(runId);
 }
 
-async function execute(runId: string, changes: Changes): Promise<void> {
+async function execute(runId: string, zone: string, changes: Changes): Promise<void> {
   const settings = (await getSettings())!;
   const usage: Usage = { inputTokens: 0, outputTokens: 0, modelCalls: 0 };
   const previousContent = new Map<string, string>([
@@ -187,6 +190,7 @@ async function execute(runId: string, changes: Changes): Promise<void> {
   ]);
   const ctx = {
     runId,
+    zone,
     settings,
     changes,
     previousContent,
@@ -222,7 +226,7 @@ async function execute(runId: string, changes: Changes): Promise<void> {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      await saveSnapshots(client, changes, runId);
+      await saveSnapshots(client, zone, changes, runId);
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');

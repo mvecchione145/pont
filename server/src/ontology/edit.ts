@@ -1,5 +1,6 @@
 import type { User } from '../auth.js';
 import { backlinks } from './links.js';
+import { listZones, toRef, zoneName } from './zones.js';
 import {
   CONCEPT_TYPES,
   findConcept,
@@ -66,13 +67,13 @@ function checkFresh(item: { updatedAt: string }, expected: unknown) {
 
 // --- Concepts ---------------------------------------------------------------
 
-export async function createConcept(body: Record<string, unknown>, user: User): Promise<Concept> {
+export async function createConcept(zone: string, body: Record<string, unknown>, user: User): Promise<Concept> {
   const name = text(body.name, 'name', 200);
   if (!name) throw new EditError('A concept needs a name.');
   const type = conceptType(body.type);
   const definition = body.definition === undefined ? '' : text(body.definition, 'definition');
   const aliases = aliasList(body.aliases).filter((a) => a.toLowerCase() !== name.toLowerCase());
-  return updateOntology((o) => {
+  return updateOntology(zone, (o) => {
     checkUnique(o, name, aliases);
     const concept: Concept = {
       id: uniqueId(slugify(name), o.concepts.map((c) => c.id)),
@@ -89,8 +90,8 @@ export async function createConcept(body: Record<string, unknown>, user: User): 
   });
 }
 
-export async function updateConcept(id: string, body: Record<string, unknown>, user: User): Promise<Concept> {
-  return updateOntology((o) => {
+export async function updateConcept(zone: string, id: string, body: Record<string, unknown>, user: User): Promise<Concept> {
+  return updateOntology(zone, (o) => {
     const c = o.concepts.find((x) => x.id === id);
     if (!c) throw new EditError('No such concept.', 404);
     checkFresh(c, body.expectedUpdatedAt);
@@ -108,8 +109,8 @@ export async function updateConcept(id: string, body: Record<string, unknown>, u
   });
 }
 
-export async function deleteConcept(id: string): Promise<{ relationsRemoved: number }> {
-  return updateOntology((o) => {
+export async function deleteConcept(zone: string, id: string): Promise<{ relationsRemoved: number }> {
+  return updateOntology(zone, (o) => {
     if (!o.concepts.some((c) => c.id === id)) throw new EditError('No such concept.', 404);
     o.concepts = o.concepts.filter((c) => c.id !== id);
     const before = o.relations.length;
@@ -126,9 +127,9 @@ function resolveConcept(o: Ontology, ref: unknown, field: string): Concept {
   return c;
 }
 
-export async function createRelation(body: Record<string, unknown>, user: User): Promise<Relation> {
+export async function createRelation(zone: string, body: Record<string, unknown>, user: User): Promise<Relation> {
   const type = relationType(body.type);
-  return updateOntology((o) => {
+  return updateOntology(zone, (o) => {
     const from = resolveConcept(o, body.from, 'from');
     const to = resolveConcept(o, body.to, 'to');
     if (from.id === to.id) throw new EditError('A concept cannot relate to itself.');
@@ -151,8 +152,8 @@ export async function createRelation(body: Record<string, unknown>, user: User):
   });
 }
 
-export async function updateRelation(id: string, body: Record<string, unknown>, user: User): Promise<Relation> {
-  return updateOntology((o) => {
+export async function updateRelation(zone: string, id: string, body: Record<string, unknown>, user: User): Promise<Relation> {
+  return updateOntology(zone, (o) => {
     const r = o.relations.find((x) => x.id === id);
     if (!r) throw new EditError('No such relationship.', 404);
     checkFresh(r, body.expectedUpdatedAt);
@@ -176,8 +177,8 @@ export async function updateRelation(id: string, body: Record<string, unknown>, 
   });
 }
 
-export async function deleteRelation(id: string): Promise<void> {
-  await updateOntology((o) => {
+export async function deleteRelation(zone: string, id: string): Promise<void> {
+  await updateOntology(zone, (o) => {
     if (!o.relations.some((r) => r.id === id)) throw new EditError('No such relationship.', 404);
     o.relations = o.relations.filter((r) => r.id !== id);
   });
@@ -192,45 +193,49 @@ export function relationLabel(o: Ontology, r: Relation): string {
   return r.name || `${name(r.from)} ${humanType(r.type)} ${name(r.to)}`;
 }
 
-export async function conceptDetail(id: string) {
-  const { ontology } = await readOntology();
+export async function conceptDetail(zone: string, id: string) {
+  const { ontology } = await readOntology(zone);
   const concept = ontology.concepts.find((c) => c.id === id);
   if (!concept) throw new EditError('No such concept.', 404);
   const name = (cid: string) => ontology.concepts.find((c) => c.id === cid)?.name ?? cid;
   const relations = ontology.relations
     .filter((r) => r.from === id || r.to === id)
     .map((r) => ({ ...r, label: relationLabel(ontology, r), fromName: name(r.from), toName: name(r.to) }));
-  return { ...concept, relations, linkedFrom: await backlinks('concept', id) };
+  return { ...concept, zone, relations, linkedFrom: await backlinks('concept', toRef(zone, id)) };
 }
 
-export async function relationDetail(id: string) {
-  const { ontology } = await readOntology();
+export async function relationDetail(zone: string, id: string) {
+  const { ontology } = await readOntology(zone);
   const r = ontology.relations.find((x) => x.id === id);
   if (!r) throw new EditError('No such relationship.', 404);
   const concept = (cid: string) => ontology.concepts.find((c) => c.id === cid);
   return {
     ...r,
+    zone,
     label: relationLabel(ontology, r),
     fromConcept: concept(r.from) ?? null,
     toConcept: concept(r.to) ?? null,
-    linkedFrom: await backlinks('relation', id),
+    linkedFrom: await backlinks('relation', toRef(zone, id)),
   };
 }
 
 export interface OntologyHit {
   kind: 'concept' | 'relation';
   id: string;
+  zone: string;
+  zoneName: string;
+  // What a link points to: "<zone>/<id>", or "<id>" in the default zone.
+  ref: string;
   name: string;
   type: string;
   description: string;
 }
 
-// Autocomplete for linking: concepts and relationships whose name (or alias,
-// or connected concepts) matches, best matches first.
-export async function searchOntology(query: string, limit = 8): Promise<OntologyHit[]> {
+// Autocomplete for linking: concepts and relationships in every zone whose
+// name (or alias, or connected concepts) matches, best matches first. Items in
+// the preferred zone (the linking page's) rank above equal matches elsewhere.
+export async function searchOntology(query: string, preferredZone: string, limit = 8): Promise<OntologyHit[]> {
   const q = query.trim().toLowerCase();
-  const { ontology } = await readOntology();
-  const scored: { hit: OntologyHit; score: number }[] = [];
   const score = (candidates: string[], extra = '') => {
     let best = 0;
     for (const c of candidates.map((x) => x.toLowerCase())) {
@@ -243,18 +248,27 @@ export async function searchOntology(query: string, limit = 8): Promise<Ontology
     if (!best && q && extra.toLowerCase().includes(q)) best = 10;
     return best;
   };
-  for (const c of ontology.concepts) {
-    const s = score([c.name, ...c.aliases], c.definition);
-    if (s) scored.push({ score: s + 1, hit: { kind: 'concept', id: c.id, name: c.name, type: c.type, description: c.definition } });
-  }
-  const conceptName = (id: string) => ontology.concepts.find((c) => c.id === id)?.name ?? '';
-  for (const r of ontology.relations) {
-    const label = relationLabel(ontology, r);
-    // Name/label first; the concepts it connects count as a weaker match.
-    const s = score([label, ...(r.name ? [r.name] : [])], r.description ?? '') || Math.min(30, score([conceptName(r.from), conceptName(r.to)]));
-    if (s) {
-      const fallback = `${humanType(r.type)}: ${relationLabel(ontology, { ...r, name: undefined })}`;
-      scored.push({ score: s, hit: { kind: 'relation', id: r.id, name: label, type: humanType(r.type), description: r.description || (r.name ? fallback : '') } });
+  const scored: { hit: OntologyHit; score: number }[] = [];
+  for (const { zone } of await listZones()) {
+    const { ontology } = await readOntology(zone);
+    const bonus = zone === preferredZone ? 5 : 0;
+    const at = (id: string) => ({ id, zone, zoneName: zoneName(zone), ref: toRef(zone, id) });
+    for (const c of ontology.concepts) {
+      const s = score([c.name, ...c.aliases], c.definition);
+      if (s) scored.push({ score: s + 1 + bonus, hit: { kind: 'concept', ...at(c.id), name: c.name, type: c.type, description: c.definition } });
+    }
+    const conceptName = (id: string) => ontology.concepts.find((c) => c.id === id)?.name ?? '';
+    for (const r of ontology.relations) {
+      const label = relationLabel(ontology, r);
+      // Name/label first; the concepts it connects count as a weaker match.
+      const s = score([label, ...(r.name ? [r.name] : [])], r.description ?? '') || Math.min(30, score([conceptName(r.from), conceptName(r.to)]));
+      if (s) {
+        const fallback = `${humanType(r.type)}: ${relationLabel(ontology, { ...r, name: undefined })}`;
+        scored.push({
+          score: s + bonus,
+          hit: { kind: 'relation', ...at(r.id), name: label, type: humanType(r.type), description: r.description || (r.name ? fallback : '') },
+        });
+      }
     }
   }
   return scored

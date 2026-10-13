@@ -2714,3 +2714,224 @@ select {
 .pull-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 18%, var(--bg));
 }
+
+/* Zones: one tab per top-level folder on the Ontology page. */
+.zone-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 12px 0 4px;
+}
+.zone-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--fg-soft);
+  text-decoration: none;
+  font-size: 13px;
+}
+.zone-tab:hover {
+  background: var(--hover);
+}
+.zone-tab[aria-current='page'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+.zone-pending {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--down);
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+.zone-folder .row-label {
+  font-weight: 600;
+}
+
+/* Ontology graph. One fixed hue per concept type, in CONCEPT_TYPES order
+   (Metric, Process, Decision, Policy, System, Team, Term); each mode's steps
+   are validated for color-vision deficiency against that mode's surface.
+   Every node is labeled, so identity never rests on color alone. */
+:root {
+  --type-1: #2a78d6;
+  --type-2: #eb6834;
+  --type-3: #1baf7a;
+  --type-4: #eda100;
+  --type-5: #e87ba4;
+  --type-6: #008300;
+  --type-7: #6250d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --type-1: #3987e5;
+    --type-2: #d95926;
+    --type-3: #199e70;
+    --type-4: #c98500;
+    --type-5: #d55181;
+    --type-6: #008300;
+    --type-7: #9085e9;
+  }
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-left: 0.75rem;
+  vertical-align: middle;
+}
+.view-toggle button {
+  border: 0;
+  border-radius: 0;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.view-toggle button[aria-pressed='true'] {
+  background: var(--active);
+  color: var(--fg);
+}
+
+.ontology-graph {
+  position: relative;
+}
+.graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.graph-legend,
+.graph-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.legend-chip.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.graph-canvas {
+  display: block;
+  width: 100%;
+  height: min(70vh, 640px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.graph-canvas:active {
+  cursor: grabbing;
+}
+.graph-edge .edge-line {
+  fill: none;
+  stroke: var(--fg-faint);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.graph-edge.strong .edge-line {
+  stroke: var(--fg-soft);
+  stroke-width: 2;
+}
+.graph-edge .edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  cursor: pointer;
+}
+.graph-arrowhead {
+  fill: var(--fg-faint);
+}
+.graph-arrowhead.strong {
+  fill: var(--fg-soft);
+}
+.graph-edge.dim {
+  opacity: 0.15;
+}
+.edge-label {
+  font-size: 11px;
+  fill: var(--fg-soft);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  pointer-events: none;
+}
+.graph-node {
+  cursor: pointer;
+  outline: none;
+}
+.graph-node .node-hit {
+  fill: transparent;
+}
+.graph-node .node-dot {
+  /* A 2px surface ring keeps overlapping nodes apart. */
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.graph-node.focus .node-dot,
+.graph-node:focus-visible .node-dot {
+  stroke: var(--fg);
+}
+.graph-node .node-pin {
+  fill: var(--surface);
+  pointer-events: none;
+}
+.graph-node .node-label {
+  font-size: 12px;
+  fill: var(--fg);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  pointer-events: none;
+}
+.graph-node.dim {
+  opacity: 0.2;
+}
+.graph-tooltip {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  pointer-events: none;
+}
+.tooltip-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-soft);
+}

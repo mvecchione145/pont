@@ -2,9 +2,11 @@ import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import YAML from 'yaml';
 import { s3 } from '../clients.js';
 import { config } from '../config.js';
+import { ontologyKey } from './zones.js';
 
 // The ontology: concepts and typed relationships between them, kept as one
-// YAML file in the versioned bucket, next to (not inside) the knowledge pages.
+// YAML file per zone in the versioned bucket, next to (not inside) the
+// knowledge pages.
 // Every change goes through updateOntology(), which retries on concurrent
 // writes so two approvals at once can't overwrite each other.
 
@@ -57,7 +59,6 @@ export interface Ontology {
   relations: Relation[];
 }
 
-const KEY = 'ontology/ontology.yaml';
 const bucket = config.minio.bucket;
 const EMPTY: Ontology = { version: 1, concepts: [], relations: [] };
 
@@ -66,9 +67,9 @@ const isNotFound = (err: unknown) => {
   return name === 'NoSuchKey' || name === 'NotFound';
 };
 
-export async function readOntology(): Promise<{ ontology: Ontology; etag: string | null }> {
+export async function readOntology(zone: string): Promise<{ ontology: Ontology; etag: string | null }> {
   try {
-    const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: KEY }));
+    const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: ontologyKey(zone) }));
     const text = (await res.Body?.transformToString('utf-8')) ?? '';
     const parsed = (YAML.parse(text) ?? {}) as Partial<Ontology>;
     return {
@@ -91,16 +92,16 @@ const isPreconditionFailed = (err: unknown) => {
 // Applies a change to the latest ontology and saves it with a conditional
 // write (If-Match on the ETag we read). If someone else saved in between, the
 // change is re-applied to their version, up to 3 times.
-export async function updateOntology<T>(change: (ontology: Ontology) => T): Promise<T> {
+export async function updateOntology<T>(zone: string, change: (ontology: Ontology) => T): Promise<T> {
   for (let attempt = 0; attempt < 3; attempt++) {
-    const { ontology, etag } = await readOntology();
+    const { ontology, etag } = await readOntology(zone);
     const result = change(ontology);
     ontology.concepts.sort((a, b) => a.name.localeCompare(b.name));
     try {
       await s3.send(
         new PutObjectCommand({
           Bucket: bucket,
-          Key: KEY,
+          Key: ontologyKey(zone),
           Body: YAML.stringify(ontology, { lineWidth: 0 }),
           ContentType: 'application/yaml; charset=utf-8',
           ...(etag ? { IfMatch: etag } : { IfNoneMatch: '*' }),

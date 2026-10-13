@@ -153,7 +153,7 @@ async function pending(id: string): Promise<StoredRecommendation> {
 export async function approve(id: string, user: User): Promise<{ status: 'approved' | 'failed'; message: string }> {
   const rec = await pending(id);
   try {
-    const message = await updateOntology((ontology) => applyTo(ontology, rec, user.name ?? user.username));
+    const message = await updateOntology(rec.zone, (ontology) => applyTo(ontology, rec, user.name ?? user.username));
     await decide(id, 'approved', user);
     return { status: 'approved', message };
   } catch (err) {

@@ -1,6 +1,6 @@
 import { Router, type ErrorRequestHandler } from 'express';
 import { ApplyError, approve, decideMany, reject } from '../ontology/apply.js';
-import { listRecommendations, pendingRecommendationCount } from '../ontology/recommendations.js';
+import { listRecommendations, pendingByZone, pendingRecommendationCount } from '../ontology/recommendations.js';
 import { cancelRun, getRun, listRuns, previewChanges, RunError, startRun } from '../ontology/runs.js';
 import { OntologyConflictError, readOntology } from '../ontology/store.js';
 import {
@@ -16,6 +16,7 @@ import {
   updateRelation,
 } from '../ontology/edit.js';
 import { backlinks } from '../ontology/links.js';
+import { listZones, parseZone, toRef, ZoneError } from '../ontology/zones.js';
 
 export const ontologyRouter = Router();
 
@@ -25,13 +26,31 @@ const id = (raw: string) => {
   return raw;
 };
 
-ontologyRouter.get('/', async (_req, res) => {
-  res.json((await readOntology()).ontology);
+// Every endpoint below works on one zone, given as ?zone=<top-level folder>;
+// without it, the default zone (pages at the root).
+const zoneOf = (req: { query: Record<string, unknown> }) => parseZone(req.query.zone);
+
+// The zones, with how many pages, concepts, and pending recommendations each has.
+ontologyRouter.get('/zones', async (_req, res) => {
+  const [zones, pending] = await Promise.all([listZones(), pendingByZone()]);
+  res.json(
+    await Promise.all(
+      zones.map(async (z) => {
+        const { ontology } = await readOntology(z.zone);
+        return { ...z, concepts: ontology.concepts.length, relations: ontology.relations.length, pending: pending.get(z.zone) ?? 0 };
+      }),
+    ),
+  );
 });
 
-// Autocomplete for linking text to the ontology.
+ontologyRouter.get('/', async (req, res) => {
+  res.json((await readOntology(zoneOf(req))).ontology);
+});
+
+// Autocomplete for linking text to the ontology: every zone, the linking
+// page's zone (?zone=) first.
 ontologyRouter.get('/search', async (req, res) => {
-  res.json(await searchOntology(typeof req.query.q === 'string' ? req.query.q : ''));
+  res.json(await searchOntology(typeof req.query.q === 'string' ? req.query.q : '', zoneOf(req)));
 });
 
 // Concept and relationship ids are slugs like "weekly-active-users" or
@@ -43,49 +62,52 @@ const slug = (raw: string) => {
 };
 
 ontologyRouter.post('/concepts', async (req, res) => {
-  res.status(201).json(await createConcept(req.body ?? {}, req.user!));
+  res.status(201).json(await createConcept(zoneOf(req), req.body ?? {}, req.user!));
 });
 ontologyRouter.get('/concepts/:id', async (req, res) => {
-  res.json(await conceptDetail(slug(req.params.id)));
+  res.json(await conceptDetail(zoneOf(req), slug(req.params.id)));
 });
 ontologyRouter.put('/concepts/:id', async (req, res) => {
-  res.json(await updateConcept(slug(req.params.id), req.body ?? {}, req.user!));
+  res.json(await updateConcept(zoneOf(req), slug(req.params.id), req.body ?? {}, req.user!));
 });
 ontologyRouter.delete('/concepts/:id', async (req, res) => {
+  const zone = zoneOf(req);
   const id = slug(req.params.id);
-  const linkedFrom = await backlinks('concept', id);
-  res.json({ ...(await deleteConcept(id)), linkedFrom });
+  const linkedFrom = await backlinks('concept', toRef(zone, id));
+  res.json({ ...(await deleteConcept(zone, id)), linkedFrom });
 });
 
 ontologyRouter.post('/relations', async (req, res) => {
-  res.status(201).json(await createRelation(req.body ?? {}, req.user!));
+  res.status(201).json(await createRelation(zoneOf(req), req.body ?? {}, req.user!));
 });
 ontologyRouter.get('/relations/:id', async (req, res) => {
-  res.json(await relationDetail(slug(req.params.id)));
+  res.json(await relationDetail(zoneOf(req), slug(req.params.id)));
 });
 ontologyRouter.put('/relations/:id', async (req, res) => {
-  res.json(await updateRelation(slug(req.params.id), req.body ?? {}, req.user!));
+  res.json(await updateRelation(zoneOf(req), slug(req.params.id), req.body ?? {}, req.user!));
 });
 ontologyRouter.delete('/relations/:id', async (req, res) => {
+  const zone = zoneOf(req);
   const id = slug(req.params.id);
-  const linkedFrom = await backlinks('relation', id);
-  await deleteRelation(id);
+  const linkedFrom = await backlinks('relation', toRef(zone, id));
+  await deleteRelation(zone, id);
   res.json({ linkedFrom });
 });
 
-// What changed since the last calculation, with a cost estimate for the
-// confirmation dialog. Reads pages but calls no LLM.
-ontologyRouter.get('/changes', async (_req, res) => {
-  res.json(await previewChanges());
+// What changed in the zone since its last calculation, with a cost estimate
+// for the confirmation dialog. Reads pages but calls no LLM.
+ontologyRouter.get('/changes', async (req, res) => {
+  res.json(await previewChanges(zoneOf(req)));
 });
 
-ontologyRouter.get('/runs', async (_req, res) => {
-  res.json(await listRuns());
+ontologyRouter.get('/runs', async (req, res) => {
+  res.json(await listRuns(zoneOf(req)));
 });
 
-// Starts a calculation (LLM cost). The client confirms with the user first.
+// Starts a calculation of one zone (LLM cost). The client confirms with the
+// user first.
 ontologyRouter.post('/runs', async (req, res) => {
-  res.status(202).json(await startRun(req.user!));
+  res.status(202).json(await startRun(req.user!, zoneOf(req)));
 });
 
 ontologyRouter.get('/runs/:id', async (req, res) => {
@@ -102,7 +124,7 @@ ontologyRouter.get('/recommendations/count', async (_req, res) => {
 });
 
 ontologyRouter.get('/recommendations', async (req, res) => {
-  res.json(await listRecommendations(req.query.status === 'decided' ? 'decided' : 'pending'));
+  res.json(await listRecommendations(zoneOf(req), req.query.status === 'decided' ? 'decided' : 'pending'));
 });
 
 // Body: { action: "approve" | "reject", ids: [...] }. Only the listed ids are
@@ -126,6 +148,10 @@ ontologyRouter.post('/recommendations/:id/reject', async (req, res) => {
 });
 
 export const ontologyErrors: ErrorRequestHandler = (err, _req, res, next) => {
+  if (err instanceof ZoneError) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
   if (err instanceof RunError || err instanceof ApplyError || err instanceof EditError) {
     res.status(err.status).json({ error: err.message });
     return;

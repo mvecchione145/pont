@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, type Concept, type Ontology, type Relation } from '../api';
 import { href, type Route } from '../route';
+import { toRef } from '../zones';
 
 // Games built from the approved ontology, alongside Trivia: flashcards for
 // concepts (name ↔ definition) and a match game for relationships ("APPY
@@ -48,11 +49,24 @@ export function GameTabs({ current }: { current: Route['view'] }) {
   );
 }
 
+// Every zone's ontology in one, with ids replaced by refs ("<zone>/<id>") so
+// they stay unique and work as links.
+async function allZones(): Promise<Ontology> {
+  const zones = await api.zones();
+  const parts = await Promise.all(zones.map(async ({ zone }) => ({ zone, ontology: await api.ontology(zone) })));
+  return {
+    concepts: parts.flatMap(({ zone, ontology }) => ontology.concepts.map((c) => ({ ...c, id: toRef(zone, c.id) }))),
+    relations: parts.flatMap(({ zone, ontology }) =>
+      ontology.relations.map((r) => ({ ...r, id: toRef(zone, r.id), from: toRef(zone, r.from), to: toRef(zone, r.to) })),
+    ),
+  };
+}
+
 function useOntology() {
   const [ontology, setOntology] = useState<Ontology | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    api.ontology().then(setOntology, (err: Error) => setError(err.message));
+    allZones().then(setOntology, (err: Error) => setError(err.message));
   }, []);
   return { ontology, error };
 }

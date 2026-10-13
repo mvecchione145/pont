@@ -172,7 +172,8 @@ Give Docker at least **2 GB** of memory, and **4 GB** to be comfortable. Indexin
 | Key | Contents |
 |---|---|
 | `knowledge/<path>.md` | Each page, as plain Markdown. Object metadata records the author, plus where a version came from (proposal, review, restore, move) |
-| `ontology/ontology.yaml` | The approved ontology: concepts and relationships |
+| `ontology/ontology.yaml` | The default zone's approved ontology (pages at the root): concepts and relationships |
+| `ontology/zones/<zone>.yaml` | Each other zone's approved ontology; a zone is a top-level folder |
 | `proposals/<id>.patch` | Agent page proposals, as unified diffs |
 
 **Postgres** (`pont` database): API tokens (hashes only), settings (with the encrypted LLM key), trivia questions and scores, ontology runs, page snapshots and recommendations, page proposals, page reviews, page moves (so dead links can point to where a page went), and an index of which pages link to which ontology items (rebuilt on every start).
@@ -192,7 +193,7 @@ These ideas are adapted from [Onyx](https://github.com/onyx-dot-app/onyx); pont 
 
 ## Links and dead links
 
-Pages link to each other as `#/p/<path>`, to headings as `#/p/<path>?section=<heading>`, and to the ontology as `#/concept/<id>` or `#/relation/<id>`, all plain Markdown. The server keeps every page's headings in memory for the link picker. The dead-link check (no LLM) parses every internal link outside code and flags:
+Pages link to each other as `#/p/<path>`, to headings as `#/p/<path>?section=<heading>`, and to the ontology as `#/concept/<zone>/<id>` or `#/relation/<zone>/<id>` (just `#/concept/<id>` in the default zone), all plain Markdown. The server keeps every page's headings in memory for the link picker. The dead-link check (no LLM) parses every internal link outside code and flags:
 
 | Problem | Suggested fix |
 |---|---|

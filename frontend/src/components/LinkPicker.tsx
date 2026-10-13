@@ -1,12 +1,14 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { api, CONCEPT_TYPES, type LinkTarget, type OntologyHit } from '../api';
 import { href, nameOf } from '../route';
+import { toRef, zoneName, zoneOf } from '../zones';
 
 // The autocomplete used when linking text: a floating table (Link to | Type |
 // Description) of matching ontology concepts and relationships, pages, and
 // headings, plus "Create concept" when nothing matches exactly. A query with
 // "#" links to a heading: "#escal" on this page, "onboarding#escal" on
-// another page.
+// another page. Concepts come from every zone, the page's own zone first; a
+// new concept is created in the page's zone.
 
 export interface PickerKeys {
   // Returns true when the picker handled the key.
@@ -40,7 +42,7 @@ const ONTOLOGY_ROWS = 6;
 const PAGE_ROWS = 8;
 
 const rowKey = (row: Row) =>
-  'hit' in row ? `${row.hit.kind}:${row.hit.id}` : 'target' in row ? `${row.target.kind}:${row.target.path}#${row.target.name}` : 'create';
+  'hit' in row ? `${row.hit.kind}:${row.hit.ref}` : 'target' in row ? `${row.target.kind}:${row.target.path}#${row.target.name}` : 'create';
 const rowName = (row: Row) => ('hit' in row ? row.hit.name : 'target' in row ? row.target.name : row.create);
 
 export function LinkPicker({ ref, mode, query, fromPath, x, y, onPick, onClose }: Props) {
@@ -55,12 +57,13 @@ export function LinkPicker({ ref, mode, query, fromPath, x, y, onPick, onClose }
   const boxRef = useRef<HTMLDivElement>(null);
 
   const q = mode === 'trigger' ? query : search;
+  const zone = zoneOf(fromPath);
 
   useEffect(() => {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       // "#" means a heading, so the ontology isn't searched.
-      const ontology = q.includes('#') ? Promise.resolve([]) : api.searchOntology(q).catch(() => []);
+      const ontology = q.includes('#') ? Promise.resolve([]) : api.searchOntology(q, zone).catch(() => []);
       const pages = api.searchLinkTargets(q, fromPath).catch(() => []);
       void Promise.all([ontology, pages]).then(([h, t]) => {
         if (cancelled) return;
@@ -73,7 +76,7 @@ export function LinkPicker({ ref, mode, query, fromPath, x, y, onPick, onClose }
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [q, fromPath]);
+  }, [q, fromPath, zone]);
 
   const wanted = q.trim().toLowerCase();
   const found: Row[] = [...hits.map((hit) => ({ hit })), ...targets.map((target) => ({ target }))];
@@ -88,7 +91,7 @@ export function LinkPicker({ ref, mode, query, fromPath, x, y, onPick, onClose }
 
   function choose(row: Row | undefined) {
     if (!row) return;
-    if ('hit' in row) onPick({ href: href({ view: row.hit.kind, id: row.hit.id }), name: row.hit.name });
+    if ('hit' in row) onPick({ href: href({ view: row.hit.kind, id: row.hit.ref }), name: row.hit.name });
     else if ('target' in row) {
       const t = row.target;
       onPick({ href: href({ view: 'page', path: t.path, section: t.kind === 'section' ? t.name : undefined }), name: t.name });
@@ -129,8 +132,8 @@ export function LinkPicker({ ref, mode, query, fromPath, x, y, onPick, onClose }
   async function create() {
     if (!creating) return;
     try {
-      const c = await api.createConcept({ name: creating, type, definition });
-      onPick({ href: href({ view: 'concept', id: c.id }), name: c.name });
+      const c = await api.createConcept(zone, { name: creating, type, definition });
+      onPick({ href: href({ view: 'concept', id: toRef(zone, c.id) }), name: c.name });
     } catch (err) {
       setError((err as Error).message);
     }
@@ -166,7 +169,9 @@ export function LinkPicker({ ref, mode, query, fromPath, x, y, onPick, onClose }
             void create();
           }}
         >
-          <strong>New concept: {creating}</strong>
+          <strong>
+            New concept: {creating} <span className="muted">in {zoneName(zone)}</span>
+          </strong>
           <div className="row-fields">
             <select value={type} onChange={(e) => setType(e.target.value)} autoFocus>
               {CONCEPT_TYPES.map((t) => (
@@ -208,7 +213,10 @@ export function LinkPicker({ ref, mode, query, fromPath, x, y, onPick, onClose }
                 >
                   {'hit' in row ? (
                     <>
-                      <td className="name">{row.hit.name}</td>
+                      <td className="name">
+                        {row.hit.name}
+                        {row.hit.zone !== zone && <span className="muted"> · {row.hit.zoneName}</span>}
+                      </td>
                       <td>
                         <span className={`pill ${row.hit.kind}`}>{row.hit.kind === 'concept' ? row.hit.type : 'Relationship'}</span>
                       </td>

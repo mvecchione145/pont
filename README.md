@@ -50,6 +50,13 @@ The user can now sign in at <http://localhost:3000>.
      --header "Authorization: Bearer pont_..."
    ```
 
+Or, when working in this repository, use the included [`.mcp.json`](.mcp.json): it connects Claude Code to your local pont at `http://localhost:3000/mcp` and reads the token from the `PONT_API_TOKEN` environment variable, so no token is stored in the file:
+
+```sh
+export PONT_API_TOKEN=pont_...   # the token from API tokens
+claude                          # approve the "pont" server when asked
+```
+
 Claude Code can then call pont's MCP tools as you:
 
 * **Read:** `search`, `read_entry`, `list_entries`, `get_concept`, `list_concepts`
@@ -131,7 +138,9 @@ Page proposals appear on the **Agent Proposals** page (with a count in the sideb
 
 ### Ontology
 
-The **Ontology** page holds the concepts your documentation defines (metrics, processes, decisions, policies, systems, teams, and terms) and typed relationships between them, such as *Weekly active users calculated from Sessions*. It is stored as `ontology/ontology.yaml` in the bucket, versioned like the pages.
+The **Ontology** page holds the concepts your documentation defines (metrics, processes, decisions, policies, systems, teams, and terms) and typed relationships between them, such as *Weekly active users calculated from Sessions*. It is stored in the bucket, versioned like the pages.
+
+**Zones.** Each top-level folder is a zone with its own ontology, calculated only from that folder's pages, with its own runs and review queue. Pages at the root are in the default **General** zone (`ontology/ontology.yaml`); other zones are stored as `ontology/zones/<zone>.yaml`. Concept links name their zone: `#/concept/sales/revenue`, or `#/concept/revenue` in the default zone. The MCP tools `search`, `get_concept`, and `list_concepts` take an optional `zone`, and ontology proposals go to the zone of their evidence pages.
 
 The ontology is built by two AI agents ([Strands Agents](https://strandsagents.com) TypeScript SDK) that you run with **Calculate**:
 
@@ -140,7 +149,7 @@ The ontology is built by two AI agents ([Strands Agents](https://strandsagents.c
 3. The *maintain* agent checks what the ontology says about changed and deleted pages and recommends updates or deletions. The *create* agent reads new and changed content and recommends new concepts, aliases, and relationships, checking the existing ontology first so it doesn't duplicate anything.
 4. Every recommendation must quote the page passage that supports it; pont checks that the quote is really there before saving it. **Nothing changes until someone approves it** on the Ontology page. Rejected recommendations aren't suggested again.
 
-Every concept and relationship has its own page (`#/concept/<id>`, `#/relation/<id>`) where people can edit or delete it directly, add relationships, and see which pages link to it. Relationships can have a name and description (for example *Peanut Butter & Jelly*), and **＋ New concept** on the Ontology page adds one by hand.
+Every concept and relationship has its own page (`#/concept/<zone>/<id>`, `#/relation/<zone>/<id>`) where people can edit or delete it directly, add relationships, and see which pages link to it. Relationships can have a name and description (for example *Peanut Butter & Jelly*), and **＋ New concept** on the Ontology page adds one by hand.
 
 **Linking text to the ontology, other pages, and headings.** In a page, type `[[` followed by a few letters; select text and press **⌘⇧K** (Ctrl+Shift+K) or click the link button at the end of the formatting toolbar; or type `/` and choose **Advanced → Link to page or concept**. A picker lists matching concepts, relationships, pages, and headings (Link to | Type | Description), with an option to create a new concept on the spot. Add `#` for a heading: `[[#escal` for a heading on this page, `[[onboarding#escal` for one on another page. Page links are saved as `[text](#/p/<path>)` and heading links as `[text](#/p/<path>?section=<heading>)`. Renaming or moving a page updates links to it on every other page automatically. Each page's **✦ Review** panel lists its links whose page, heading, or concept is gone, with a suggested new destination and one-click fixes. The link is saved as plain Markdown, `[peanut butter](#/concept/peanut-butter)`, so agents can follow it with the `get_concept` MCP tool. ⌘-click (Ctrl-click) a link in the editor to open its concept.
 

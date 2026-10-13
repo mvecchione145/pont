@@ -4,8 +4,9 @@ import { createTwoFilesPatch } from 'diff';
 import type { PoolClient } from 'pg';
 import { db, s3 } from '../clients.js';
 import { config } from '../config.js';
+import { inZone } from './zones.js';
 
-// What changed in the documentation since the last ontology calculation.
+// What changed in a zone's documentation since its last ontology calculation.
 // Each page's state at calculation time is snapshotted (version ID and content
 // hash); comparing that to the latest versions in MinIO gives the added,
 // modified, and deleted pages. MinIO keeps old versions, so a modified page
@@ -56,9 +57,10 @@ const pathFromKey = (key: string) => key.slice(PREFIX.length, -SUFFIX.length);
 const keyFor = (path: string) => `${PREFIX}${path}${SUFFIX}`;
 export const hashContent = (content: string) => createHash('sha256').update(content).digest('hex');
 
-// The latest live version of every page (pages whose latest version is a
-// delete marker are left out).
-async function latestVersions(): Promise<PageVersion[]> {
+// The latest live version of every page in the zone (pages whose latest
+// version is a delete marker are left out).
+async function latestVersions(zone: string): Promise<PageVersion[]> {
+  const belongs = inZone(zone);
   const pages: PageVersion[] = [];
   let keyMarker: string | undefined;
   let versionMarker: string | undefined;
@@ -67,7 +69,7 @@ async function latestVersions(): Promise<PageVersion[]> {
       new ListObjectVersionsCommand({ Bucket: bucket, Prefix: PREFIX, KeyMarker: keyMarker, VersionIdMarker: versionMarker }),
     );
     for (const v of page.Versions ?? []) {
-      if (v.IsLatest && v.Key?.endsWith(SUFFIX) && v.VersionId) {
+      if (v.IsLatest && v.Key?.endsWith(SUFFIX) && v.VersionId && belongs(pathFromKey(v.Key))) {
         pages.push({ path: pathFromKey(v.Key), versionId: v.VersionId });
       }
     }
@@ -82,9 +84,10 @@ export async function readVersion(path: string, versionId: string): Promise<stri
   return (await res.Body?.transformToString('utf-8')) ?? '';
 }
 
-export async function loadSnapshots(): Promise<Map<string, Snapshot>> {
+export async function loadSnapshots(zone: string): Promise<Map<string, Snapshot>> {
   const { rows } = await db.query<{ path: string; version_id: string; content_hash: string }>(
-    'SELECT path, version_id, content_hash FROM ontology_snapshots',
+    'SELECT path, version_id, content_hash FROM ontology_snapshots WHERE zone = $1',
+    [zone],
   );
   return new Map(rows.map((r) => [r.path, { path: r.path, versionId: r.version_id, hash: r.content_hash }]));
 }
@@ -96,8 +99,8 @@ function focusedDiff(path: string, before: string, after: string): string {
   return body.length > MAX_DIFF_CHARS ? `${body.slice(0, MAX_DIFF_CHARS)}\n… (diff truncated)` : body;
 }
 
-export async function detectChanges(): Promise<Changes> {
-  const [latest, snapshots] = await Promise.all([latestVersions(), loadSnapshots()]);
+export async function detectChanges(zone: string): Promise<Changes> {
+  const [latest, snapshots] = await Promise.all([latestVersions(zone), loadSnapshots(zone)]);
   const changes: Changes = { added: [], modified: [], deleted: [], unchanged: [] };
   const live = new Set<string>();
 
@@ -141,13 +144,13 @@ export const changeCount = (c: Changes) => c.added.length + c.modified.length + 
 
 // Records the analysed state of every changed page, so the next calculation
 // only looks at what changed after this one.
-export async function saveSnapshots(client: PoolClient, changes: Changes, runId: string): Promise<void> {
-  const upsert = `INSERT INTO ontology_snapshots (path, version_id, content_hash, run_id)
-                  VALUES ($1, $2, $3, $4)
+export async function saveSnapshots(client: PoolClient, zone: string, changes: Changes, runId: string): Promise<void> {
+  const upsert = `INSERT INTO ontology_snapshots (path, version_id, content_hash, run_id, zone)
+                  VALUES ($1, $2, $3, $4, $5)
                   ON CONFLICT (path) DO UPDATE
-                  SET version_id = $2, content_hash = $3, run_id = $4, calculated_at = now()`;
+                  SET version_id = $2, content_hash = $3, run_id = $4, zone = $5, calculated_at = now()`;
   for (const p of [...changes.added, ...changes.modified]) {
-    await client.query(upsert, [p.path, p.versionId, p.hash, runId]);
+    await client.query(upsert, [p.path, p.versionId, p.hash, runId, zone]);
   }
   for (const p of changes.unchanged) {
     await client.query(

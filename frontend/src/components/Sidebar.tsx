@@ -36,12 +36,13 @@ function FolderRow({ name, folder, prefix, depth, selected, onNewPage }: TreePro
   const [open, setOpen] = useState(true);
   return (
     <li>
-      <div className="row" style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}>
+      {/* Top-level folders are zones, each with its own ontology. */}
+      <div className={`row${depth === 0 ? ' zone-folder' : ''}`} style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}>
         <button
           className="row-main"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
-          title={open ? 'Collapse' : 'Expand'}
+          title={`${open ? 'Collapse' : 'Expand'}${depth === 0 ? ' · a zone, with its own ontology' : ''}`}
         >
           <span className={`chevron ${open ? 'open' : ''}`}>›</span>
           <span className="row-label">{name}</span>
