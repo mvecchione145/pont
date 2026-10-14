@@ -1,0 +1,25 @@
+{
+  "realm": "pont",
+  "displayName": "pont",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "clients": [
+    {
+      "clientId": "pont-web",
+      "name": "pont web app",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["${PONT_PUBLIC_URL}/*"],
+      "webOrigins": ["${PONT_PUBLIC_URL}"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${PONT_PUBLIC_URL}/*"
+      }
+    }
+  ]
+}

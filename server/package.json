@@ -1,0 +1,55 @@
+{
+  "name": "@pont/server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "pont backend: REST API for the frontend and MCP endpoint for agents",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.0",
+    "@aws-sdk/client-s3": "^3.1147.0",
+    "@huggingface/transformers": "^4.3.1",
+    "@joplin/turndown-plugin-gfm": "^1.0.68",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@strands-agents/sdk": "^1.20.0",
+    "diff": "^9.0.0",
+    "express": "^5.2.1",
+    "jose": "^6.2.12",
+    "mammoth": "^1.13.0",
+    "multer": "^2.4.0",
+    "neo4j-driver": "^6.2.0",
+    "openai": "^7.30.0",
+    "pg": "^8.23.1",
+    "redis": "^6.3.0",
+    "turndown": "^7.2.4",
+    "unpdf": "^1.8.1",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@types/turndown": "^5.0.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "overrides": {
+    "argparse": "^2.0.1",
+    "@strands-agents/sdk": {
+      "@anthropic-ai/sdk": "$@anthropic-ai/sdk",
+      "openai": "$openai"
+    }
+  }
+}

@@ -1,0 +1,197 @@
+# pont MVP stack. `docker compose up` works with no .env file: every
+# setting has a development default. Override them in .env (see .env.example).
+
+name: pont
+
+x-minio-env: &minio-env
+  MINIO_ROOT_USER: ${MINIO_ROOT_USER:-pont}
+  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-pont-minio-dev}
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "${PONT_PORT:-3000}:80"
+    depends_on:
+      server:
+        condition: service_healthy
+
+  server:
+    build: ./server
+    environment:
+      PORT: 4000
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pont}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-pont-minio-dev}
+      MINIO_BUCKET: ${MINIO_BUCKET:-pont}
+      REDIS_URL: redis://redis:6379
+      NEO4J_URL: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-pont-neo4j-dev}
+      DATABASE_URL: postgres://${PONT_DB_USER:-pont}:${PONT_DB_PASSWORD:-pont-db-dev}@postgres:5432/${PONT_DB_NAME:-pont}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_PUBLIC_URL: http://localhost:${KEYCLOAK_PORT:-8080}
+      KEYCLOAK_REALM: pont
+      KEYCLOAK_CLIENT_ID: pont-web
+      # Local embedding model for search, downloaded once into model-cache.
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-Xenova/bge-small-en-v1.5}
+      MODEL_CACHE_DIR: /models
+      # Encrypts the LLM API key stored in Postgres. Change it in .env.
+      PONT_SECRET_KEY: ${PONT_SECRET_KEY:-pont-dev-secret-change-me}
+      PONT_PUBLIC_URL: http://localhost:${PONT_PORT:-3000}
+      # Optional GitHub OAuth App (see README, "GitHub docs"). Empty: off.
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_URL: ${GITHUB_URL:-https://github.com}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+    volumes:
+      - model-cache:/models
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:4000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment: *minio-env
+    ports:
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot job: create the knowledge bucket and turn on versioning
+  # (versioning is how pont keeps the history of every entry).
+  minio-init:
+    image: cgr.dev/chainguard/minio:latest
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        mc version enable "local/$$MINIO_BUCKET"
+    environment:
+      <<: *minio-env
+      MINIO_BUCKET: ${MINIO_BUCKET:-pont}
+      MC_CONFIG_DIR: /tmp/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  redis:
+    image: redis/redis-stack-server:7.4.0-v6
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # The ontology: concepts and relationships per zone, plus the pages that
+  # link to them and that they were drawn from.
+  neo4j:
+    image: neo4j:5.26-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-pont-neo4j-dev}
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    ports:
+      # Neo4j Browser, for looking at the graph directly (log in as neo4j).
+      - "${NEO4J_BROWSER_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$${NEO4J_AUTH#neo4j/}\" 'RETURN 1' >/dev/null"]
+      interval: 5s
+      timeout: 10s
+      retries: 24
+      start_period: 20s
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres-dev}
+      KEYCLOAK_DB_NAME: keycloak
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak-db-dev}
+      PONT_DB_NAME: ${PONT_DB_NAME:-pont}
+      PONT_DB_USER: ${PONT_DB_USER:-pont}
+      PONT_DB_PASSWORD: ${PONT_DB_PASSWORD:-pont-db-dev}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak-db-dev}
+      # Browsers reach Keycloak at localhost, containers at keycloak:8080.
+      # Tokens always carry the public URL as their issuer.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8080}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+      # Substituted into pont-realm.json on import (allowed login redirects).
+      PONT_PUBLIC_URL: http://localhost:${PONT_PORT:-3000}
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    volumes:
+      - ./infra/keycloak/pont-realm.json:/opt/keycloak/data/import/pont-realm.json:ro
+    healthcheck:
+      # The image has no curl or wget, so probe the management port with bash.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/localhost/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"UP"' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  model-cache:
+  minio-data:
+  redis-data:
+  neo4j-data:
+  postgres-data:

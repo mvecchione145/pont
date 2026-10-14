@@ -1,0 +1,102 @@
+import express from 'express';
+import { config } from './config.js';
+import { redis, db, graph } from './clients.js';
+import { checkHealth } from './health.js';
+import { requireUser } from './auth.js';
+import { entriesRouter, entryErrors } from './routes/entries.js';
+import { tokensRouter } from './routes/tokens.js';
+import { mcpRouter } from './mcp.js';
+import { chatErrors, chatRouter } from './chat.js';
+import { exportRouter } from './export.js';
+import { migrate } from './migrate.js';
+import { searchRouter } from './routes/search.js';
+import { settingsRouter } from './routes/settings.js';
+import { triviaRouter, triviaErrors } from './routes/trivia.js';
+import { uploadsRouter, uploadErrors } from './routes/uploads.js';
+import { ontologyRouter, ontologyErrors } from './routes/ontology.js';
+import { proposalsRouter, proposalErrors } from './routes/proposals.js';
+import { historyRouter, historyErrors } from './routes/history.js';
+import { reviewsRouter, reviewErrors } from './routes/reviews.js';
+import { failInterruptedReviews } from './review.js';
+import { failInterruptedRuns } from './ontology/runs.js';
+import { startLinkIndex } from './ontology/links.js';
+import { ensureGraphSchema } from './ontology/store.js';
+import { importLegacyYaml } from './ontology/yaml.js';
+import { startPageLinkIndex } from './pagelinks.js';
+import { linkErrors, linksRouter } from './routes/links.js';
+import { startMoveTracking } from './deadlinks.js';
+import { startLinkUpdates } from './linkupdates.js';
+import { githubCallbackRouter, githubErrors, githubRouter } from './routes/github.js';
+import { startGithubLinks } from './github/service.js';
+import { startIndexer } from './search/index.js';
+
+const app = express();
+app.use(express.json({ limit: '2mb' }));
+
+// Public routes: Docker health checks and the frontend's login bootstrap.
+app.get('/api/health', async (_req, res) => {
+  const health = await checkHealth();
+  res.status(health.ok ? 200 : 503).json(health);
+});
+
+app.get('/api/config', (_req, res) => {
+  const { publicUrl, realm, clientId } = config.keycloak;
+  res.json({ keycloak: { url: publicUrl, realm, clientId } });
+});
+
+// MCP endpoint for agents. Authenticated by personal API token, not by a
+// Keycloak login, so it sits outside the /api login check.
+app.use('/mcp', mcpRouter);
+
+// GitHub's OAuth redirect back to pont (identified by its one-time state).
+app.use('/api/github', githubCallbackRouter);
+
+// Everything registered below this line requires a logged-in user.
+app.use('/api', requireUser);
+
+app.get('/api/me', (req, res) => {
+  res.json(req.user);
+});
+
+app.use('/api/entries', entriesRouter, entryErrors);
+app.use('/api/tokens', tokensRouter);
+app.use('/api/search', searchRouter);
+app.use('/api/settings', settingsRouter);
+app.use('/api/trivia', triviaRouter, triviaErrors);
+app.use('/api/uploads', uploadsRouter, uploadErrors);
+app.use('/api/ontology', ontologyRouter, ontologyErrors);
+app.use('/api/proposals', proposalsRouter, proposalErrors);
+app.use('/api/history', historyRouter, historyErrors);
+app.use('/api/reviews', reviewsRouter, reviewErrors);
+app.use('/api/links', linksRouter, linkErrors);
+app.use('/api/github', githubRouter, githubErrors);
+app.use('/api/chat', chatRouter, chatErrors);
+app.use('/api/export', exportRouter, entryErrors);
+
+await redis.connect();
+await migrate();
+await ensureGraphSchema();
+await importLegacyYaml();
+await failInterruptedRuns();
+await failInterruptedReviews();
+
+const server = app.listen(config.port, () => {
+  console.log(`pont server listening on port ${config.port}`);
+});
+
+// Loads the embedding model and builds or catches up the search index in the
+// background; search answers 503 until it is ready.
+void startIndexer();
+void startLinkIndex();
+void startPageLinkIndex();
+void startMoveTracking();
+startLinkUpdates();
+startGithubLinks();
+
+async function shutdown() {
+  server.close();
+  await Promise.allSettled([redis.quit(), db.end(), graph.close()]);
+  process.exit(0);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
