@@ -155,6 +155,10 @@ Every concept and relationship has its own page (`#/concept/<zone>/<id>`, `#/rel
 
 Only one calculation runs at a time, and it can be cancelled. If a run fails or is cancelled, the next one looks at the same changes again. Each agent call is capped in model calls, and every run records its token usage.
 
+### Chat
+
+**Chat** in the sidebar answers questions from your documentation with an agent that uses pont's own MCP tools (search, pages, ontology, and, when asked, proposals), streaming the answer with links to the pages it used. It uses the LLM set up in **Settings** (see below). Proposals it makes are attributed to the person chatting and wait for review.
+
 ### Trivia
 
 **Trivia** (under **Games** in the sidebar) asks multiple-choice questions written on the fly from a random section of your documentation: +1 for a correct answer, −1 for a wrong one. The leaderboard shows this week (from Monday) and all time. After each question, **Fact check this section** opens the page the question came from, scrolled to that section, so anyone who spots something out of date can fix it right away.

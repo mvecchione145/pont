@@ -633,3 +633,34 @@ export const api = {
     }),
   revokeToken: (id: string) => request<void>(`/api/tokens/${id}`, { method: 'DELETE' }),
 };
+
+// Chat: the answer streams back as newline-delimited JSON events.
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+export type ChatEvent =
+  | { type: 'text'; text: string }
+  | { type: 'tool'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'tool_result'; id: string; ok: boolean }
+  | { type: 'done'; stopReason: string; inputTokens: number; outputTokens: number; costUsd: number | null }
+  | { type: 'error'; message: string };
+
+export async function* chat(messages: ChatTurn[], signal: AbortSignal): AsyncGenerator<ChatEvent> {
+  const res = await apiFetch('/api/chat', { ...json('POST', { messages }), signal });
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.error ?? `Request failed (${res.status})`, body?.code);
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += value;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) if (line.trim()) yield JSON.parse(line) as ChatEvent;
+  }
+}

@@ -7,6 +7,7 @@ import { Home } from './components/Home';
 import { Tokens } from './components/Tokens';
 import { SearchDialog } from './components/SearchDialog';
 import { Trivia } from './components/Trivia';
+import { Chat } from './components/Chat';
 import { Settings } from './components/Settings';
 import { UploadDialog } from './components/UploadDialog';
 import { GithubLinkDialog } from './components/GithubLinkDialog';
@@ -130,6 +131,11 @@ export default function App() {
           </div>
         )}
         {route.view === 'home' && <Home entries={entries} onNewPage={() => newPage('')} />}
+        {route.view === 'chat' && (
+          <div className="page chat-page">
+            <Chat />
+          </div>
+        )}
         {route.view === 'trivia' && (
           <div className="page wide">
             <Trivia user={user} />

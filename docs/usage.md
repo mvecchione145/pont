@@ -118,6 +118,12 @@ Press **⌘K** (Ctrl K) and type a question or a term:
 
 Results show the page and section; click one to open it. Unrelated questions return nothing rather than a list of weak matches.
 
+### Ask in Chat
+
+**Chat** in the sidebar answers questions in your own words, for example *"what did we decide about the first property, and why?"*. It uses the same tools agents get over MCP (search, read pages, look up and explore concepts), lists each one it used above the answer, and links the pages it cites. Ask follow-ups in the same chat; **New chat** starts over. The conversation stays in that browser tab only.
+
+Chat uses the LLM set up in **Settings**, and each answer shows roughly what it cost. It can also propose page edits or ontology changes if you ask it to; those are made in your name and wait for review like any other agent proposal.
+
 ## 5. Connect Claude Code
 
 1. In pont, open **API tokens** and create a token. It's shown once, with the command to run.

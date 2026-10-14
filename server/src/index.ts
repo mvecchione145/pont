@@ -6,6 +6,7 @@ import { requireUser } from './auth.js';
 import { entriesRouter, entryErrors } from './routes/entries.js';
 import { tokensRouter } from './routes/tokens.js';
 import { mcpRouter } from './mcp.js';
+import { chatErrors, chatRouter } from './chat.js';
 import { migrate } from './migrate.js';
 import { searchRouter } from './routes/search.js';
 import { settingsRouter } from './routes/settings.js';
@@ -68,6 +69,7 @@ app.use('/api/history', historyRouter, historyErrors);
 app.use('/api/reviews', reviewsRouter, reviewErrors);
 app.use('/api/links', linksRouter, linkErrors);
 app.use('/api/github', githubRouter, githubErrors);
+app.use('/api/chat', chatRouter, chatErrors);
 
 await redis.connect();
 await migrate();

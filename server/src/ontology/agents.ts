@@ -52,7 +52,7 @@ export interface WorkflowContext {
 
 export class RunCancelledError extends Error {}
 
-function buildModel(settings: LlmSettings) {
+export function buildModel(settings: LlmSettings) {
   if (settings.provider === 'anthropic') {
     const official = !settings.baseUrl;
     const fallbacks = official && supportsFallbacks(settings.model);

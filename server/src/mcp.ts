@@ -14,7 +14,7 @@ import { conceptDetail, relationDetail, relationLabel } from './ontology/edit.js
 import { MAX_DEPTH, neighbourhood, shortestPath } from './ontology/traverse.js';
 import { fromRef, inZone, listZones, parseZone, toRef, ZoneError, zoneName, zoneOf } from './ontology/zones.js';
 
-const INSTRUCTIONS = `pont holds this organization's knowledge, written by the people who know it:
+export const INSTRUCTIONS = `pont holds this organization's knowledge, written by the people who know it:
 business definitions and metrics, decisions and their reasoning, and processes.
 Check pont before assuming how this organization works. Start with search,
 which finds relevant passages by meaning and by exact terms; then read_entry to
@@ -51,7 +51,7 @@ const REVIEW_NOTE = 'It is now waiting for a person to review it; nothing has ch
 
 // One MCP server per request (stateless mode), bound to the token's user:
 // everything an agent proposes is attributed to that user.
-function buildServer(user: User): McpServer {
+export function buildServer(user: User): McpServer {
   const server = new McpServer(
     { name: 'pont', version: '0.1.0' },
     { instructions: INSTRUCTIONS },

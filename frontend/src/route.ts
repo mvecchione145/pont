@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 
 // A tiny hash router: #/p/<path>[?section=<heading>] for a page (scrolled to
-// that heading; "&check=1" adds trivia's fact-check prompt), plus #/trivia,
+// that heading; "&check=1" adds trivia's fact-check prompt), plus #/chat, #/trivia,
 // #/settings, #/tokens, or home. Links between pages are stored in Markdown
 // in this same form.
 export type Route =
   | { view: 'home' }
   | { view: 'tokens' }
+  | { view: 'chat' }
   | { view: 'trivia' }
   | { view: 'flashcards' }
   | { view: 'match' }
@@ -31,6 +32,7 @@ function parse(hash: string): Route {
   }
   if (
     view === 'tokens' ||
+    view === 'chat' ||
     view === 'trivia' ||
     view === 'flashcards' ||
     view === 'match' ||
@@ -50,6 +52,7 @@ export function href(route: Route): string {
     case 'home':
       return '#/';
     case 'tokens':
+    case 'chat':
     case 'trivia':
     case 'flashcards':
     case 'match':
