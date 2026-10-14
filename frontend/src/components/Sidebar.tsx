@@ -29,9 +29,10 @@ interface TreeProps {
   depth: number;
   selected?: string;
   onNewPage: (folder: string) => void;
+  onExport: (folder: string) => void;
 }
 
-function FolderRow({ name, folder, prefix, depth, selected, onNewPage }: TreeProps & { name: string }) {
+function FolderRow({ name, folder, prefix, depth, selected, onNewPage, onExport }: TreeProps & { name: string }) {
   const path = prefix ? `${prefix}/${name}` : name;
   const [open, setOpen] = useState(true);
   return (
@@ -47,18 +48,21 @@ function FolderRow({ name, folder, prefix, depth, selected, onNewPage }: TreePro
           <span className={`chevron ${open ? 'open' : ''}`}>›</span>
           <span className="row-label">{name}</span>
         </button>
+        <button className="row-action" onClick={() => onExport(path)} title={`Export ${name} as a .zip`}>
+          ⇩
+        </button>
         <button className="row-action" onClick={() => onNewPage(path)} title={`New page in ${name}`}>
           +
         </button>
       </div>
       {open && (
-        <Tree folder={folder} prefix={path} depth={depth + 1} selected={selected} onNewPage={onNewPage} />
+        <Tree folder={folder} prefix={path} depth={depth + 1} selected={selected} onNewPage={onNewPage} onExport={onExport} />
       )}
     </li>
   );
 }
 
-function Tree({ folder, prefix, depth, selected, onNewPage }: TreeProps) {
+function Tree({ folder, prefix, depth, selected, onNewPage, onExport }: TreeProps) {
   return (
     <ul>
       {[...folder.folders].map(([name, child]) => (
@@ -70,6 +74,7 @@ function Tree({ folder, prefix, depth, selected, onNewPage }: TreeProps) {
           depth={depth}
           selected={selected}
           onNewPage={onNewPage}
+          onExport={onExport}
         />
       ))}
       {folder.pages.map((p) => (
@@ -96,6 +101,7 @@ interface Props {
   onNewPage: (folder: string) => void;
   onSearch: () => void;
   onUpload: () => void;
+  onExport: (folder: string) => void;
   onLinkGithub: () => void;
   pendingProposals: number;
   // Ontology recommendations waiting for review.
@@ -121,6 +127,7 @@ export function Sidebar({
   onNewPage,
   onSearch,
   onUpload,
+  onExport,
   onLinkGithub,
   pendingProposals,
   pendingRecommendations,
@@ -208,7 +215,7 @@ export function Sidebar({
         {entries.length === 0 ? (
           <p className="muted empty">No pages yet</p>
         ) : (
-          <Tree folder={buildTree(entries)} prefix="" depth={0} selected={selected} onNewPage={onNewPage} />
+          <Tree folder={buildTree(entries)} prefix="" depth={0} selected={selected} onNewPage={onNewPage} onExport={onExport} />
         )}
       </nav>
 
@@ -220,6 +227,10 @@ export function Sidebar({
         <button className="row row-main" onClick={onUpload}>
           <span className="page-icon">⇪</span>
           <span className="row-label">Upload</span>
+        </button>
+        <button className="row row-main" onClick={() => onExport('')} title="Download every page as Markdown, with the ontologies, in a .zip">
+          <span className="page-icon">⇩</span>
+          <span className="row-label">Export</span>
         </button>
         <button className="row row-main" onClick={onLinkGithub}>
           <span className="page-icon">⎇</span>

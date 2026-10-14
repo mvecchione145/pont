@@ -106,6 +106,10 @@ Click **Upload** and drop files or whole folders. A preview shows where each fil
 
 Pages that already exist are skipped unless you tick **Replace existing**; replaced pages keep their old versions in history.
 
+### Exporting
+
+Click **Export** at the bottom of the sidebar to download everything as a `.zip`: each page as a Markdown file in its folders, and each zone's ontology as YAML under `_ontology/`. To export one folder, hover it in the sidebar and click **⇩**. Links between pages stay in pont's form (`#/p/<path>`), so they open in pont rather than between the files. Only the current version of each page is included, not its history.
+
 ## 4. Find knowledge
 
 Press **⌘K** (Ctrl K) and type a question or a term:

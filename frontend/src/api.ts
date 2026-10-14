@@ -664,3 +664,20 @@ export async function* chat(messages: ChatTurn[], signal: AbortSignal): AsyncGen
     for (const line of lines) if (line.trim()) yield JSON.parse(line) as ChatEvent;
   }
 }
+
+// Downloads every page (or one folder's) as a .zip of Markdown files, plus
+// the ontologies as YAML.
+export async function exportDocs(folder = ''): Promise<void> {
+  const res = await apiFetch(`/api/export${folder ? `?${new URLSearchParams({ folder })}` : ''}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.error ?? `Export failed (${res.status})`, body?.code);
+  }
+  const name = /filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'pont-export.zip';
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type EntrySummary, type User } from './api';
+import { api, exportDocs, type EntrySummary, type User } from './api';
 import { folderOf, navigate, useRoute } from './route';
 import { Sidebar } from './components/Sidebar';
 import { Page } from './components/Page';
@@ -119,6 +119,7 @@ export default function App() {
         onNewPage={newPage}
         onSearch={() => setSearchOpen(true)}
         onUpload={() => setUploadOpen(true)}
+        onExport={(folder) => exportDocs(folder).catch((err: Error) => setError(err.message))}
         onLinkGithub={() => setGithubOpen(true)}
         pendingProposals={Object.values(proposalCounts).reduce((a, b) => a + b, 0)}
         pendingRecommendations={pendingRecommendations}
