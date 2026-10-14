@@ -40,7 +40,7 @@
 
 - **The server is the only service that touches the data stores.** The browser and agents go through nginx to the server; nothing else is exposed except Keycloak (for login) and the MinIO console.
 - **MinIO is the source of truth** for pages, and **Neo4j** for the ontology. Redis holds a search index that can always be rebuilt from MinIO. Postgres holds accounts, tokens, settings, and review queues.
-- Everything runs in one Docker Compose project. The only outside calls are the LLM API (only for trivia, page review, and ontology calculation, and only when a person starts them) and a one-time download of the embedding model.
+- Everything runs in one Docker Compose project. The only outside calls are the LLM API (only for chat, trivia, page review, and ontology calculation, and only when a person starts them) and a one-time download of the embedding model.
 
 ## Services and images
 
@@ -154,6 +154,7 @@ Give Docker at least **2 GB** of memory, and **4 GB** to be comfortable. Indexin
 | Vite | 8 | Build |
 | Milkdown Crepe / Kit | 7.22 | Notion-style Markdown editor (ProseMirror) |
 | `keycloak-js` | 26 | Sign-in (OIDC authorization code with PKCE) |
+| `marked` | 18 | Renders chat answers (raw HTML shown as text; links only to pont pages and the web) |
 
 ### Infrastructure
 
@@ -210,11 +211,12 @@ Fixes rewrite every link with that destination on the page and save a new versio
 
 ## LLM features
 
-All LLM features use the provider set once in **Settings**: Anthropic (default model `claude-opus-5-5`) or any OpenAI-compatible endpoint. Answers are requested as structured output and validated against a schema before use.
+All LLM features use the provider set once in **Settings**: Anthropic (default model `claude-opus-5-5`) or any OpenAI-compatible endpoint. Trivia, page review, and ontology answers are requested as structured output and validated against a schema before use; chat answers stream as Markdown.
 
 | Feature | Started by | What is sent | Guardrails |
 |---|---|---|---|
 | Trivia | A person asking for a question | One random chunk | One question per request |
+| Chat | A person asking a question | The conversation so far (at most 40 messages, text only) and what the MCP tools return | The MCP tools, connected in-process and bound to that person; at most 16 model calls per answer; stops when the person stops or leaves; proposals wait for review |
 | Page review | A person, after a cost estimate | The page, up to 20 related passages (24,000 characters) from other pages, and up to 40 unlinked ontology terms | Quotes are checked against the page; invented ones are dropped; nothing changes until a finding is applied |
 | Ontology calculation | A person, after a cost estimate | Pages changed since the last run, in batches of about 24,000 characters | At most 24 model calls per batch; one run at a time; cancellable; every recommendation must quote its evidence |
 

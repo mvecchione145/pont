@@ -146,6 +146,10 @@ export function Sidebar({
           <span className="page-icon">⌂</span>
           <span className="row-label">Home</span>
         </a>
+        <a className="row row-main" href={href({ view: 'chat' })} aria-current={route.view === 'chat' ? 'page' : undefined}>
+          <span className="page-icon">✦</span>
+          <span className="row-label">Chat</span>
+        </a>
         <a
           className="row row-main"
           href={href({ view: 'proposals' })}
